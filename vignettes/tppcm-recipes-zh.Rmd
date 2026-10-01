@@ -103,7 +103,7 @@ fit_fix <- tam.mml.3pl(sc, E = tppcm(sc), est.variance = FALSE, verbose = FALSE,
                        gammaslope.fixed = cbind(2, 3))                  # sc1 step 2 fixed at 3
 ```
 
-**討論**：`index` 的編號不必連續，會自動重新編號。不要用 TAM 的 `gammaslope.constr.V` 做等式限制，它收斂不到最大概似估計值。
+**討論**：`index` 的編號不必連續，會自動重新編號。
 
 **參見**：B1（報表）、C3（模式比較）。
 
@@ -133,7 +133,7 @@ irt_pars(fit_timss, se = FALSE)
 ```{r a5}
 fit_r1 <- xxirt_tppcm(as.matrix(sc), "rank1")
 irt_pars(fit_r1, restricted = TRUE)              # alpha_i and gamma_l
-dim(xxirt_vcov(fit_r1))                          # sirt's vcov() fails with shared parameters
+dim(xxirt_vcov(fit_r1))                          # covariance matrix of the xxirt fit
 ```
 
 估計值落在下界 0 時，報表會標出來。`TAM::data.gpcm` 中 `Work` 的第 3 步就是這種情況：TAM 給出 $a = -0.04$ 和一個沒有意義的難度，xxirt 則給出 $a = 0$：
@@ -181,19 +181,18 @@ knitr::kable(cbind(p$items[, 1:3], p$SE[, 1:3]), digits = 2,
 
 **參見**：`?irt_pars`、B2、C4。
 
-## B2. 為什麼不用 TAM 的標準誤
+## B2. 標準誤與信賴區間
 
-**問題**：`tam.mml.3pl()` 已經有 `se.gammaslope`，為什麼要另外算？
+**問題**：步驟鑑別度的標準誤與信賴區間。
 
 **解法**：
 
 ```{r b2}
-st <- irt_pars(fit_sat, long = TRUE)
-st <- st[st$par == "disc", ]
-round(cbind(est = st$est, tppcm_se = st$se, TAM_se = fit_sat$se.gammaslope), 3)
+st <- irt_pars(fit_sat, long = TRUE, level = 0.90)
+head(st[st$par == "disc", ])
 ```
 
-**討論**：TAM 的 `se.gammaslope` 沒有考慮斜率與閾值之間的共變數，只有正確值的 30–65% 左右。`irt_pars()` 用整個模式的觀察資訊（Louis 公式），和數值 Hessian 一致。
+**討論**：`irt_pars()` 用整個模式的觀察資訊（Louis 公式），斜率與閾值之間的共變數都有考慮進去。`level =` 設定信賴水準。
 
 **參見**：`vignette("tppcm-tutorial-zh")` 第 3 節。
 
@@ -414,7 +413,7 @@ dif_test(sp_va, va$anger[-1])                                            # wrong
 
 **問題**：有好幾個共變數，想讓資料自己找出分組。
 
-**解法**：`tppcmtree()`，分開看難度和鑑別度。語言攻擊資料是 psychotree `pctree()` 的標準範例：
+**解法**：`tppcmtree()`，分開看難度和鑑別度。以語言攻擊資料為例：
 
 ```{r d4}
 tr_diff <- tppcmtree(resp ~ gender + anger, data = va, model = "pcm", parm = "diff", minsize = 50)
@@ -428,7 +427,7 @@ partykit::width(tr_disc)
 tppcmtree(resp ~ gender + anger, data = va, model = "gpcm", parm = "diff", minsize = 50)
 ```
 
-**討論**：難度樹在性別上分裂，和 `pctree()` 一樣；鑑別度樹沒有分裂。失敗的那一次呼叫顯示了限制所在：某個節點裡某題的某個類別已經沒有人選，節點模式無法估計。加大 `minsize`，或改用要求較低的節點模式（`"pcm"`）即可。`coef(tree)` 給出各節點的參數。`model = "gpcm"` 搭配 `parm = "all"` 可重現 psychotree 的 `gpcmtree()`。
+**討論**：難度樹在性別上分裂；鑑別度樹沒有分裂。失敗的那一次呼叫顯示了限制所在：某個節點裡某題的某個類別已經沒有人選，節點模式無法估計。加大 `minsize`，或改用要求較低的節點模式（`"pcm"`）即可。`coef(tree)` 給出各節點的參數。
 
 **參見**：`?tppcmtree`、D1、D2。
 

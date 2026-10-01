@@ -18,7 +18,7 @@ This vignette shows how to analyze step discriminations of polytomous items with
 
 1. the model and what the package does;
 2. estimating the TPPCM with TAM;
-3. parameter reports, correct standard errors, model fit and information;
+3. parameter reports, standard errors, model fit and information;
 4. tests: are the step discriminations equal, where does the GPCM fail;
 5. the product form;
 6. DIF in step discriminations and step difficulties (score-based tests, DIF trees);
@@ -191,8 +191,6 @@ Only nested pairs are shown: the GPCM and the step model do not contain each oth
 
 > **Which PCM?** For likelihood-ratio comparisons use `tam.mml.3pl(E = tppcm(dat, "pcm"))` (common slope, variance 1), so that all models share one parameterization and one set of quadrature nodes. `tam.mml()` estimates the variance instead; the two parameterizations are nested mathematically, but with TAM's default 21 nodes their numerical integration errors differ. Above, the two PCM log-likelihoods differ by 7 units; with more items the likelihood ratio against a slope-parameterized model can even become negative. Alternatively use more nodes, e.g. `control = list(nodes = seq(-6, 6, len = 61))`.
 
-> Do **not** use `gammaslope.constr.V` of `tam.mml.3pl()` for equality constraints: in our experience it does not converge to the maximum likelihood estimate. Always write equalities into `index`.
-
 # 3. Reports, standard errors, fit and information
 
 ## `irt_pars()`: a compact parameter table
@@ -222,17 +220,9 @@ Fixed parameters get no SE. TAM's PCM fixes $a = 1$ and estimates the variance, 
 irt_pars(m_pcm)
 ```
 
-## Why not TAM's standard errors?
+## Standard errors
 
-`tam.mml.3pl()` returns `se.gammaslope`, but it **ignores the covariance between slopes and thresholds** and is clearly too small. `irt_pars()` uses the observed information of the whole model (Louis' formula), which agrees with a numerical Hessian.
-
-```{r se-compare}
-st <- irt_pars(m_tppcm, long = TRUE)
-st <- st[st$par == "disc", ]
-round(cbind(est = st$est, se = st$se, TAM_se = m_tppcm$se.gammaslope), 3)
-```
-
-On these data TAM's SEs are between about 30% and 65% of the correct ones. Tests based on them would grossly overstate significance.
+`irt_pars()` computes standard errors from the observed information of the whole model (Louis' formula), so the covariance between slopes and thresholds is taken into account.
 
 `irt_pars(long = TRUE)` returns a long table with confidence intervals:
 
@@ -242,7 +232,7 @@ head(irt_pars(m_tppcm, long = TRUE, level = 0.90))
 
 ## Overall fit: `m2()`
 
-`m2()` computes the limited-information statistics of Maydeu-Olivares and Joe (2006). TAM and sirt have no M2; mirt has one, but only for models mirt itself can specify, which excludes `tppcm(dat, "step")`, custom `index` designs and the product form. `m2()` differentiates the margins with respect to the saturated parameters and multiplies by the Jacobian from `get_parts()`, so it works for any step design.
+`m2()` computes the limited-information statistics of Maydeu-Olivares and Joe (2006). `m2()` differentiates the margins with respect to the saturated parameters and multiplies by the Jacobian from `get_parts()`, so it works for any step design.
 
 ```{r m2}
 m2(m_gpcm)            # full M2: all univariate and bivariate margins
@@ -253,12 +243,8 @@ m2(m_gpcm, "C2")      # univariate margins plus bivariate cross products
 - `"M2"` uses all univariate and bivariate margins and has the most degrees of freedom. The default `"auto"` uses it when there are at most 2000 margins and switches to `"C2"` otherwise.
 - `"C2"` (Cai & Monroe, 2014) and `"M2*"` reduce the margins to moments and have far fewer degrees of freedom; for a saturated TPPCM with few items they can have df ≤ 0 and cannot be computed.
 - RMSEA2 $=\sqrt{\max(M_2-df,0)/(N\,df)}$; SRMSR is the root mean square difference between observed and model-implied item-score correlations; CFI and TLI use the independence model (independent items with free category proportions) as the baseline.
-- One group only. With missing data every margin is computed from the respondents who answered the items involved and the covariance matrix is adjusted for the pairwise overlap; this is valid under missing completely at random (MCAR). In a simulation with 15% MCAR missingness the means of M2, C2 and M2\* were 244.98, 19.86 and 3.88 for df 244, 20 and 4, with rejection rates .03–.05.
+- One group only. With missing data every margin is computed from the respondents who answered the items involved and the covariance matrix is adjusted for the pairwise overlap; this is valid under missing completely at random (MCAR).
 - When step discriminations differ within items, the full M2 can reject the GPCM while C2 does not: C2 and M2\* collapse the categories into moments of the item scores, and differences between steps are averaged away. To check step discriminations use the full M2 or the score tests of Section 4.
-
-Validation: for binary 2PL models the result is identical to mirt's `M2()`; for the GPCM, `"C2"` correlates .9996 with mirt's. In a simulation with a true GPCM (8 items, 4 categories, $N = 1000$, 100 replications) the mean of the full M2 was 243.98 for df 244 with rejection rate .05; C2 19.90 for df 20, .04; M2\* 4.21 for df 4, .05.
-
-Note: the element `pi.k` of a TAM object (the attribute `prob.theta` of `IRT.posterior()`) is the average posterior, not the normal prior used in the fit. `m2()` uses the estimated normal distribution; using `prob.theta` as weights gives wrong SRMSR and M2 values.
 
 ## Information: `step_info()`
 
@@ -415,19 +401,7 @@ Three items keep difficulty DIF and three items show discrimination DIF between 
 
 ### Why fit the TPPCM rather than the GPCM?
 
-`dif_test()` can only test parameters the fitted model has. With a GPCM fit discrimination exists only at the item level. A simulation (6 items, 4 categories, $N = 1500$, binary covariate, 200 replications; proportion of replications in which any unit is rejected after the Holm correction) shows what is lost:
-
-| DIF on `z` | TPPCM: step disc | TPPCM: item disc | TPPCM: item diff | GPCM: item disc | GPCM: item diff |
-|---|---|---|---|---|---|
-| none | .07 | .02 | .05 | .04 | .05 |
-| one step flatter (item 3, step 2) | 1.00 | 1.00 | .05 | .98 | **.41** |
-| two steps in opposite directions (step 2 flatter, step 3 steeper, item mean unchanged) | .77 | .84 | .06 | **.07** | **.20** |
-| whole item discrimination | .87 | 1.00 | .06 | 1.00 | .05 |
-| difficulty (item 5) | .04 | .03 | 1.00 | .03 | 1.00 |
-
-- Under the TPPCM fit the discrimination and difficulty tests do not interfere: difficulty DIF does not make the discrimination tests reject (.03–.04) and discrimination DIF does not make the difficulty tests reject (.05–.06).
-- Under the GPCM fit, two steps moving in opposite directions are nearly invisible (.07) and are instead reported as **difficulty** DIF in 20% of the replications; a single-step DIF is misreported as difficulty DIF in 41%.
-- With two opposite steps the per-step tests reject at step 2 (.60) and step 3 (.42).
+`dif_test()` can only test parameters the fitted model has. With a GPCM fit discrimination exists only at the item level, so DIF in single steps is missed or shows up as difficulty DIF. Fit the saturated TPPCM to test step discriminations.
 
 ## `tppcmtree()`: DIF trees
 
@@ -448,51 +422,26 @@ tr_diff
 tr_disc
 ```
 
-The impact problem of the previous section exists in every DIF tree based on a marginal model (psychotree's `gpcmtree()` included): a covariate correlated with ability will be split on. Read the first split of a tree on such a covariate as a difference in ability, and compare the item parameters of its daughter nodes with `coef()` after bringing them to a common scale; or use `dif_test()` on the multigroup fit as above.
+The impact problem of the previous section exists in every DIF tree based on a marginal model: a covariate correlated with ability will be split on. Read the first split of a tree on such a covariate as a difference in ability, and compare the item parameters of its daughter nodes with `coef()` after bringing them to a common scale; or use `dif_test()` on the multigroup fit as above.
 
 The tree needs a few hundred respondents per node for the saturated TPPCM. In a node where a category of some item is no longer observed the fit stops with a message asking for a larger `minsize`; `model = "gpcm"` or `"pcm"` needs fewer respondents.
 
-A detail matters here: when `partykit::mob()` tests a subset of the parameters it decorrelates all parameters first and then picks the components to test. The estimates of $a$ and $b$ are correlated, so instability of $b$ leaks into the test of $a$. `tppcmtree()` uses `orthogonal = TRUE` by default: the scores of the tested block are residualized on the other block first (efficient scores, $s_a - s_b \hat I_{bb}^{-1}\hat I_{ba}$). In 60 simulated data sets with difficulty DIF only, the non-orthogonal `disc` tree split at the root in 55% of the cases, the orthogonal one in 0%, while the power to detect step-discrimination DIF stayed at 95%.
+A detail matters here: when `partykit::mob()` tests a subset of the parameters it decorrelates all parameters first and then picks the components to test. The estimates of $a$ and $b$ are correlated, so instability of $b$ leaks into the test of $a$. `tppcmtree()` uses `orthogonal = TRUE` by default: the scores of the tested block are residualized on the other block first (efficient scores, $s_a - s_b \hat I_{bb}^{-1}\hat I_{ba}$).
 
-Testing the blocks separately matters as well: when all parameters are tested together, strong location DIF splits the sample first and step-discrimination DIF is easily buried, and testing many parameters at once is liberal in moderate samples (in a small simulation without DIF `"all"` split in about 9% of the cases, `"disc"` and `"diff"` in about 5%).
+Testing the blocks separately matters as well: when all parameters are tested together, strong location DIF splits the sample first and step-discrimination DIF is easily buried, and testing many parameters at once is liberal in moderate samples.
 
 The person scores used by the tree are available with `get_parts(fit, "estfun")` (or `"estfun.si"`). With `param = "irt"` (the default) the discrimination test means "difficulty fixed, discrimination changes"; `param = "si"` means "intercept fixed, slope changes". These are different hypotheses.
 
-### Comparison with psychotree
+### Example: verbal aggression
 
-The verbal aggression data of De Boeck and Wilson (2004), shipped with psychotools, are the standard example of psychotree's `pctree()`: 316 students, 24 items scored 0–2, with gender and trait anger as covariates. With `model = "pcm"` and `parm = "diff"` the tree is the PCM tree of psychotree (which uses conditional maximum likelihood; the splits agree):
+The verbal aggression data of De Boeck and Wilson (2004), shipped with psychotools, have 316 students, 24 items scored 0–2, and gender and trait anger as covariates. A PCM tree on the difficulties:
 
 ```{r tree-va}
 data("VerbalAggression", package = "psychotools")
 tr_va <- tppcmtree(resp ~ gender + anger, data = VerbalAggression,
                    model = "pcm", parm = "diff", minsize = 50)
 partykit::character_split(tr_va$node$split, tr_va$data)$name
-if (requireNamespace("psychotree", quietly = TRUE)) {
-  log <- utils::capture.output(                      # psychotree prints a harmless internal error here
-    pt <- psychotree::pctree(resp ~ gender + anger, data = VerbalAggression), type = "message")
-  partykit::character_split(pt$node$split, pt$data)$name
-}
 ```
-
-A simulation (6 items, 4 categories, $N = 1500$, one binary covariate `z` and one noise covariate, 40 replications) compares the trees more systematically. The table gives the proportion of root splits on `z`; splits on the noise covariate never exceeded .075 for any method.
-
-| Data / DIF on `z` | `pctree` | tppcmtree pcm, diff | `gpcmtree` | tppcmtree gpcm, all | `gpcmtree` slopes only | tppcmtree gpcm, disc | tppcmtree gpcm, diff | tppcmtree tppcm, disc | tppcmtree tppcm, diff |
-|---|---|---|---|---|---|---|---|---|---|
-| PCM, none | .08 | .08 | .05 | .05 | .03 | .05 | .08 | .00 | .03 |
-| PCM, difficulty | 1 | 1 | 1 | 1 | **.25** | **.00** | 1 | .00 | 1 |
-| GPCM, none | .10 | .10 | .08 | .08 | .03 | .00 | .10 | .00 | .05 |
-| GPCM, difficulty | 1 | 1 | 1 | 1 | **.20** | **.05** | 1 | .00 | 1 |
-| GPCM, item discrimination | .23 | .05 | .93 | .93 | .83 | .97 | .03 | .85 | .05 |
-| TPPCM, none | .03 | .00 | .00 | .00 | .00 | .05 | .05 | .00 | .03 |
-| TPPCM, one step discrimination | .08 | .03 | .62 | .62 | .93 | .90 | .13 | .88 | .00 |
-| TPPCM, two opposite steps (item mean unchanged) | .10 | .10 | .10 | .10 | .05 | .03 | .10 | **.55** | .05 |
-| GPCM, two opposite steps (item mean unchanged) | .20 | .30 | .42 | .42 | .35 | .15 | .28 | **.75** | .05 |
-
-- The PCM version (`parm = "diff"`) agrees with `pctree()`; the GPCM version with `"all"` is identical to `gpcmtree()`.
-- If `gpcmtree()` tests only the slopes, difficulty DIF makes it split on the slopes (.20–.25); the orthogonalized `parm = "disc"` does not (.00–.05).
-- Testing discriminations alone detects discrimination DIF better than testing all parameters (.90 vs .62).
-- `pctree()` reports part of the item-discrimination DIF as difficulty DIF (.23); the PCM node with `parm = "diff"` does not (.05).
-- Two steps moving in opposite directions are found only by the discrimination tree with TPPCM nodes (.55, .75). PCM and GPCM trees either miss it (.03–.10) or split on the difficulties (.20–.42), that is they report it as location DIF. A tree corrects for several covariates (Bonferroni), so its power is below that of `dif_test()` with a known grouping (.77).
 
 # 7. `get_parts()`: the mathematical components
 
@@ -526,13 +475,6 @@ score_test(sp); mi(sp)[1:3, ]
 | `"data"`, `"nobs"`, `"loglik"`, `"npar"` | responses, sample size, log-likelihood, number of parameters |
 | `"model"`, `"groups"`, `"design"` | model type, group means and variances, the design array `E` |
 
-## How things are computed (briefly)
-
-- **Scores and information**: the person scores are the posterior expectations of the complete-data scores (Fisher identity); the observed information uses Louis' formula $I = \sum_n \{E[-\partial^2\ell_c] - \mathrm{Var}[\partial\ell_c]\}$. Only `IRT.posterior()` and `IRT.irfprob()` are needed, which is why TAM and xxirt objects both work.
-- **Restricted models** are written as functions $h(\vartheta)$ of the saturated parameters with Jacobian $J$. Their observed information is $J'IJ - \sum_k g_k \nabla^2 h_k$; the second term is non-zero only for the bilinear product form. Without it the SEs of $\alpha, \gamma$ are off by 1–2%.
-- **Score test**: with $D$ the directions of relaxation, $S = g_D'\big(D'ID - D'IJ(J'IJ)^{-1}J'ID\big)^{-1}g_D$. Against the saturated model this is $g'I^{-1}g$; an MI is the 1-df case with $D$ a single $a_{il}$.
-- **PCM**: with a fixed latent distribution a change of the variance equals multiplying all slopes by a constant, so TAM's PCM is handled as "one common slope".
-
 # 8. Suggested workflow and caveats
 
 ## Workflow
@@ -546,14 +488,10 @@ score_test(sp); mi(sp)[1:3, ]
 
 ## Caveats
 
-- **Sample size**: tests against the saturated model (many df) are liberal when there are fewer than about 60 respondents per item category; tests between adjacent models (e.g. GPCM against product form, df 2) hold their level at $N = 250$.
-- **Bound**: when an estimate sits at $a_{il} = 0$, the $\chi^2$ reference distributions of the LR and score tests do not hold. Estimates near 0 make the step difficulty $b = d/a$ unstable; report the slope–intercept form (`IRTpars = FALSE`) for such items.
 - **Categories**: `tppcm()` allows different numbers of categories per item (every category from 0 to the maximum of each item must be observed); `xxirt_tppcm()` and the product form need the same number of categories for all items.
 - **Coding**: categories must be 0, 1, …; subtract 1 from 1–5 Likert data, otherwise `tppcm()` stops with an error.
 - **Supported fits**: unidimensional divide-by-total models (the adjacent-category logits are linear in $\theta$) from TAM and xxirt, including binary items, the RSM, multiple groups, weights (`pweights`) and latent regression (with a warning). Models with guessing parameters, facet models (`tam.mml.mfr()`), JML and multidimensional models are rejected. With weights, `m2()` and `dif_test()` are unavailable; with latent regression, `m2()` is unavailable.
-- **Latent distribution**: all computations treat the latent distribution as fixed at its estimate.
 - **Comparing with the PCM**: for LR comparisons use the PCM from `tppcm(dat, "pcm")` or more quadrature nodes. `tam.mml()` (variance estimated) and the slope-parameterized models cannot be subtracted at the default nodes.
-- **TAM pitfalls**: `gammaslope.constr.V` does not converge to the ML estimate under equality constraints; truncating with `userfct.gammaslope` is not a proper constrained estimate of $a \ge 0$.
 
 # References
 
