@@ -26,7 +26,13 @@ GitHub Actions (r-lib/actions check-standard, `--as-cran`, 2026-10-01):
 
 All 230 testthat expectations pass on every platform.
 
-R-hub v2 (linux, windows, macos): PENDING
+R-hub v2 (2026-10-01; all three jobs completed successfully):
+
+| Platform | R |
+|---|---|
+| linux (Ubuntu 24.04, x86_64) | R-devel |
+| windows | R-devel |
+| macos (x86_64) | R-devel |
 
 win-builder (R-devel): PENDING (to be run by the maintainer with
 `devtools::check_win_devel()`)
