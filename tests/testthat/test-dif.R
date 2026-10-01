@@ -1,0 +1,31 @@
+test_that("dif_test LM equals the closed form for a binary covariate", {
+  skip_if_not_installed("strucchange")
+  dat <- make_data()
+  fit <- TAM::tam.mml.3pl(dat, E = tppcm(dat), est.variance = FALSE, verbose = FALSE)
+  info <- get_parts(fit)
+  set.seed(3); g <- factor(sample(1:2, nrow(dat), TRUE))
+  res <- suppressMessages(dif_test(info, g))
+  S <- get_parts(info, "estfun"); S <- sweep(S, 2, colMeans(S))
+  s <- tppcm:::.efficient(S, 5)[, 1]
+  n1 <- sum(g == 1); n2 <- sum(g == 2)
+  stat <- sum(s[g == 1])^2 * (1 / n1 + 1 / n2) / mean(s^2)
+  expect_equal(res$statistic[5], stat, tolerance = 1e-8)
+  expect_equal(res$unit[5], "I2_disc2")
+  expect_equal(nrow(suppressMessages(dif_test(info, g, by = "item"))), 4)
+  expect_equal(suppressMessages(dif_test(info, g, parm = "diff", by = "block"))$npar, 12)
+  expect_error(dif_test(info, g[-1]), "one value per person")
+})
+
+test_that("dif_test finds a single step DIF and not location DIF", {
+  skip_if_not_installed("strucchange")
+  set.seed(7)
+  a <- matrix(c(1, 1.5, 0.7), 4, 3, byrow = TRUE); b <- matrix(c(-1, 0, 1), 4, 3, byrow = TRUE)
+  a2 <- a; a2[3, 2] <- 0.3
+  dat <- rbind(sim_tppcm(900, a, b), sim_tppcm(900, a2, b))
+  g <- factor(rep(1:2, each = 900))
+  fit <- TAM::tam.mml.3pl(dat, E = tppcm(dat), est.variance = FALSE, verbose = FALSE)
+  res <- suppressMessages(dif_test(fit, g))
+  expect_equal(res$unit[which.min(res$p)], "I3_disc2")
+  expect_lt(min(res$p_holm), 0.05)
+  expect_gt(min(suppressMessages(dif_test(fit, g, parm = "diff", by = "item"))$p_holm), 0.05)
+})

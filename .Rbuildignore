@@ -1,0 +1,11 @@
+^README\.Rmd$
+^.*\.Rproj$
+^\.Rproj\.user$
+^data-raw$
+^cran-comments\.md$
+^_pkgdown\.yml$
+^docs$
+^pkgdown$
+^data$
+^R/data\.R$
+^man/(yu1991|ex_steps|ex_dif|ex_survey)\.Rd$

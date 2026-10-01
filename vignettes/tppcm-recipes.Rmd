@@ -1,0 +1,513 @@
+---
+title: "tppcm recipes"
+output:
+  rmarkdown::html_vignette:
+    toc: true
+vignette: >
+  %\VignetteIndexEntry{tppcm recipes}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
+options(width = 90)
+```
+
+This document shows every function of **tppcm** in the form *Problem – Solution – Discussion – See also*. Some examples are deliberately wrong to show where the package stops you and what the message looks like. The concepts and the mathematics are in `vignette("tppcm-tutorial")`.
+
+The examples use data sets that ship with other packages:
+
+| Data | Content |
+|---|---|
+| `CDM::data.Students` | Austrian 8th graders ($N = 2400$): mathematics self-concept `sc1`–`sc4` and mathematics enjoyment `mj1`–`mj4`, scored 0–3, about 2% missing; covariates `female`, `urban` |
+| `TAM::data.timssAusTwn.scored` | TIMSS 2011 mathematics, 1050 Australian and 719 Taiwanese students, 11 items of which 4 are scored 0–2 and 7 are dichotomous; covariates country and gender |
+| `psychotools::VerbalAggression` | De Boeck and Wilson (2004): 316 students, 24 items scored 0–2; covariates `gender`, `anger` |
+| `mirt::Science`, `TAM::data.gpcm` | the Euro-Barometer science attitude items ($N = 392$), scored 1–4 in `Science` and 0–3 in `data.gpcm` |
+
+```{r load, message = FALSE}
+library(tppcm)   # also attaches TAM
+data(data.Students, package = "CDM")
+sc <- data.Students[, c("sc1", "sc2", "sc3", "sc4")]
+```
+
+# A. Data and estimation
+
+## A1. Getting raw questionnaire data into shape
+
+**Problem**: the questionnaire is scored 1–4, there is an ID column, one variable is a factor, and one item has a category nobody chose. What happens if it goes in as is?
+
+**Solution**: let `tppcm()` check it. It reports one problem at a time:
+
+```{r a1-raw, error = TRUE}
+data(Science, package = "mirt")
+head(Science, 3)
+tppcm(Science)                                   # scored 1-4
+sci <- Science - 1
+tppcm(cbind(id = seq_len(nrow(sci)), sci))       # an ID column slipped in
+s_fac <- sci; s_fac$Comfort <- factor(s_fac$Comfort)
+tppcm(s_fac)                                     # a factor column
+s_one <- sci; s_one$Work <- 0
+tppcm(s_one)                                     # an item with one category
+s_gap <- sci; s_gap$Work[s_gap$Work == 2] <- 3
+tppcm(s_gap)                                     # nobody in category 2 of Work
+```
+
+Collapse the empty category (3 of `Work` moves down to 2) and check again:
+
+```{r a1-clean}
+s_gap$Work[s_gap$Work == 3] <- 2
+attr(tppcm(s_gap), "index")                      # Work now has 2 steps
+```
+
+**Discussion**: categories must be coded 0, 1, …, and every category from 0 to the maximum of each item must be observed, otherwise the corresponding step cannot be estimated. Items may have different numbers of categories (A4). Missing responses need no treatment; TAM's marginal maximum likelihood uses what was answered.
+
+**See also**: `?tppcm`, A4.
+
+## A2. Fitting the saturated TPPCM
+
+**Problem**: every step of every item should have its own discrimination.
+
+**Solution**: `tppcm()` builds the design array for `TAM::tam.mml.3pl()`. The latent variance must be fixed:
+
+```{r a2}
+fit_sat <- tam.mml.3pl(sc, E = tppcm(sc), est.variance = FALSE, verbose = FALSE)
+fit_sat$gammaslope[1:6]               # the step discriminations
+```
+
+Forgetting `est.variance = FALSE` leaves the scale unidentified; the other functions warn:
+
+```{r a2-broken}
+fit_bad <- tam.mml.3pl(sc, E = tppcm(sc), verbose = FALSE)
+p_bad <- irt_pars(fit_bad, fit = FALSE)
+```
+
+**Discussion**: the saturated TPPCM is the same model as TAM's NRM (`tam.mml.2pl(irtmodel = "2PL")`) with the same log-likelihood; `tppcm()` makes the parameters step discriminations directly and allows restrictions (A3).
+
+**See also**: `?tppcm`, `vignette("tppcm-tutorial")` Section 2.
+
+## A3. GPCM, step model, PCM and custom restrictions
+
+**Problem**: fit something more parsimonious than the saturated model, or free only some items.
+
+**Solution**: `model =` for the common designs; `index =` for any equality restriction (same number = same parameter); TAM's `gammaslope.fixed` to fix a step:
+
+```{r a3}
+fit_gpcm <- tam.mml.3pl(sc, E = tppcm(sc, "gpcm"), est.variance = FALSE, verbose = FALSE)
+fit_step <- tam.mml.3pl(sc, E = tppcm(sc, "step"), est.variance = FALSE, verbose = FALSE)
+fit_pcm  <- tam.mml.3pl(sc, E = tppcm(sc, "pcm"),  est.variance = FALSE, verbose = FALSE)
+dimnames(tppcm(sc, "step"))[[4]]                  # parameter names
+idx <- rbind(1:3, 4:6, rep(7, 3), rep(8, 3))      # only sc1 and sc2 saturated
+fit_mix <- tam.mml.3pl(sc, E = tppcm(sc, index = idx), est.variance = FALSE, verbose = FALSE)
+fit_fix <- tam.mml.3pl(sc, E = tppcm(sc), est.variance = FALSE, verbose = FALSE,
+                       gammaslope.fixed = cbind(2, 3))                  # sc1 step 2 fixed at 3
+```
+
+**Discussion**: the numbers in `index` need not be consecutive; they are renumbered. Do not use TAM's `gammaslope.constr.V` for equality restrictions, it does not converge to the maximum likelihood estimate.
+
+**See also**: B1 (report), C3 (model comparison).
+
+## A4. Items with different numbers of categories
+
+**Problem**: the test mixes dichotomous and partial-credit items, or the top category of some items was collapsed.
+
+**Solution**: nothing special. The TIMSS items have 2 or 3 categories:
+
+```{r a4}
+data(data.timssAusTwn.scored, package = "TAM")
+timss <- data.timssAusTwn.scored[, 1:11]
+fit_timss <- tam.mml.3pl(timss, E = tppcm(timss), est.variance = FALSE, verbose = FALSE)
+irt_pars(fit_timss, se = FALSE)
+```
+
+**Discussion**: steps that do not exist are blank in the report and `NA` in `index`. The product form (`xxirt_tppcm(, "rank1")`) and `score_test(against = "rank1")` need the same number of categories in every item.
+
+**See also**: A1, `?tppcm`.
+
+## A5. The product form and the lower bound of the discriminations
+
+**Problem**: estimate $a_{il} = \alpha_i \gamma_l$, or keep discriminations from going negative. TAM cannot do either.
+
+**Solution**: `xxirt_tppcm()` fits with sirt:
+
+```{r a5}
+fit_r1 <- xxirt_tppcm(as.matrix(sc), "rank1")
+irt_pars(fit_r1, restricted = TRUE)              # alpha_i and gamma_l
+dim(xxirt_vcov(fit_r1))                          # sirt's vcov() fails with shared parameters
+```
+
+An estimate at the bound 0 is marked in the report. The third step of `Work` in `TAM::data.gpcm` is such a case: TAM gives $a = -0.04$ with a meaningless difficulty, xxirt gives $a = 0$:
+
+```{r a5-bound}
+data(data.gpcm, package = "TAM")
+fit_g3 <- tam.mml.3pl(data.gpcm, E = tppcm(data.gpcm), est.variance = FALSE, verbose = FALSE)
+irt_pars(fit_g3, fit = FALSE)$items
+irt_pars(xxirt_tppcm(as.matrix(data.gpcm)), fit = FALSE)
+```
+
+**Discussion**: a parameter on the bound has no normal-theory SE, and LR and score tests involving it no longer follow a $\chi^2$ distribution. A discrimination near 0 makes the step difficulty $b = d/a$ unstable (here $-27$ with SE 205); report such items in the slope–intercept form (`irt_pars(IRTpars = FALSE)`), whose intercepts are well behaved. A negative discrimination usually means the scoring direction of that step is doubtful. `xxirt_tppcm()` uses TAM's quadrature nodes, so its log-likelihood is comparable with TAM's (C3).
+
+**See also**: `?xxirt_tppcm`, `?xxirt_vcov`, C2.
+
+# B. Reports and components
+
+## B1. One parameter table
+
+**Problem**: a compact table like mirt's `coef(, IRTpars = TRUE, simplify = TRUE)`.
+
+**Solution**:
+
+```{r b1}
+irt_pars(fit_sat)
+```
+
+Other forms:
+
+```{r b1-forms}
+irt_pars(fit_sat, IRTpars = FALSE, fit = FALSE, se = FALSE)   # slope-intercept: slope * theta + int
+head(irt_pars(fit_sat, long = TRUE, level = 0.90))            # long format with intervals
+irt_pars(fit_gpcm, restricted = TRUE)                         # parameters of the fitted model itself
+```
+
+For a paper, the pieces are plain data frames:
+
+```{r b1-kable}
+p <- irt_pars(fit_sat, fit = FALSE)
+knitr::kable(cbind(p$items[, 1:3], p$SE[, 1:3]), digits = 2,
+             col.names = c(paste0("a", 1:3), paste0("SE(a", 1:3, ")")))
+```
+
+**Discussion**: the `Fit:` header has the log-likelihood, number of parameters, AIC and BIC (as TAM's `IRT.IC()`) and the M2 family (C4). `diff` is Masters' step difficulty, equal to TAM's `beta + tau` and mirt's `b` with `IRTpars = TRUE`.
+
+**See also**: `?irt_pars`, B2, C4.
+
+## B2. Why not TAM's standard errors
+
+**Problem**: `tam.mml.3pl()` already returns `se.gammaslope`; why compute something else?
+
+**Solution**:
+
+```{r b2}
+st <- irt_pars(fit_sat, long = TRUE)
+st <- st[st$par == "disc", ]
+round(cbind(est = st$est, tppcm_se = st$se, TAM_se = fit_sat$se.gammaslope), 3)
+```
+
+**Discussion**: TAM's `se.gammaslope` ignores the covariance between slopes and thresholds and is only about 30–65% of the correct value. `irt_pars()` uses the observed information of the whole model (Louis' formula), which agrees with a numerical Hessian.
+
+**See also**: `vignette("tppcm-tutorial")` Section 3.
+
+## B3. Getting at the components
+
+**Problem**: further computations need the information matrix, the person scores, the Jacobian.
+
+**Solution**: `get_parts()`, used like `lme4::getME()` or `lavaan::lavInspect()`:
+
+```{r b3}
+get_parts(fit_gpcm, "est")
+get_parts(fit_gpcm, c("loglik", "npar", "nobs"))
+dim(get_parts(fit_gpcm, "information"))
+head(get_parts(fit_gpcm, "estfun")[, 1:4], 3)
+```
+
+When several things are to be done with one model, take the whole bundle once and pass it on:
+
+```{r b3-reuse}
+sp <- get_parts(fit_gpcm)
+sp
+logLik(sp); nobs(sp)
+```
+
+```{r b3-broken, error = TRUE}
+get_parts(fit_gpcm, "hessian")      # no such component
+```
+
+**Discussion**: printing the bundle lists all available `what`. The internal order of the saturated parameters is $a_{i1..L}, d_{i1..L}$ per item with $d = a \cdot \text{diff}$.
+
+**See also**: `?get_parts`.
+
+## B4. Information functions
+
+**Problem**: where on the trait does each item, each step, give most information?
+
+**Solution**:
+
+```{r b4, fig.width = 7, fig.height = 3.5}
+inf <- step_info(fit_sat)
+inf
+op <- par(mfrow = c(1, 2)); plot(inf); plot(inf, item = "sc1"); par(op)
+```
+
+**Discussion**: the item information $I_i(\theta) = \mathrm{Var}(\sum_{l \le X} a_{il} \mid \theta)$ is split into step contributions that add up to it. Item and test information agree with TAM's `IRT.informationCurves()`; the step contributions are new.
+
+**See also**: `?step_info`.
+
+# C. Tests
+
+## C1. Which items have unequal step discriminations
+
+**Problem**: under the saturated model, test $a_{i1} = a_{i2} = a_{i3}$ item by item.
+
+**Solution**:
+
+```{r c1}
+wald_test(fit_sat)
+```
+
+```{r c1-broken}
+wald_test(fit_gpcm)          # in a GPCM the steps are equal by construction
+```
+
+**Discussion**: the Wald test needs the saturated model (or at least the item in question free). When only the GPCM has been fitted, use the score tests of C2, which do not need the larger model.
+
+**See also**: C2.
+
+## C2. Is the GPCM enough
+
+**Problem**: only the GPCM was fitted. Should the step discriminations be freed, and where?
+
+**Solution**:
+
+```{r c2}
+score_test(fit_gpcm)                    # GPCM against the saturated TPPCM
+score_test(fit_gpcm, "rank1")           # GPCM against the product form
+item_test(fit_gpcm)                     # which items
+head(mi(fit_gpcm), 5)                   # which steps (modification indices and EPCs)
+```
+
+```{r c2-broken, error = TRUE}
+score_test(fit_sat)                     # already saturated
+score_test(fit_timss, "rank1")          # TIMSS items have 1 or 2 steps
+```
+
+**Discussion**: a score test uses only the estimates of the restricted model. `against` can be `"tppcm"`, `"rank1"`, `"gpcm"` or `"step"`, or `D =` gives arbitrary directions. The sign of an EPC says whether the step should be steeper (positive) or flatter (negative) than the common GPCM slope; here every third step is flatter, which the product form captures with one $\gamma_3$. The model label `GPCM design (tam.mml.3pl)` means a GPCM fitted through `tppcm(dat, "gpcm")`; a fit from `tam.mml.2pl(irtmodel = "GPCM")` is labeled `GPCM` and gives the same results.
+
+**See also**: C1, C3, `vignette("tppcm-tutorial")` Section 4.
+
+## C3. Likelihood-ratio tests of nested models
+
+**Problem**: compare PCM, GPCM, step model, product form and the saturated model.
+
+**Solution**: fit all models in the slope parameterization (the PCM with `tppcm(dat, "pcm")`) and hand them to TAM:
+
+```{r c3}
+lr <- IRT.compareModels(fit_pcm, fit_gpcm, fit_step, fit_sat)$LRtest
+lr
+```
+
+The $\chi^2$ in row 4 is negative: TAM treats the model with more parameters as the larger one, but the step model (3 parameters) and the GPCM (4) do not contain each other, so that row is meaningless. Keep the nested pairs only:
+
+```{r c3-nested}
+lr[-4, ]
+```
+
+Mixing TAM and xxirt objects (the product form):
+
+```{r c3-mixed}
+suppressWarnings(IRT.compareModels(fit_gpcm, fit_r1, fit_sat))$LRtest
+```
+
+**Discussion**:
+
+- `IRT.compareModels()` compares all pairs and does not check nesting. The nesting is: PCM ⊂ GPCM, PCM ⊂ step model ⊂ product form ⊂ saturated model; GPCM ⊂ product form; GPCM and step model do not contain each other.
+- Do not compare TAM's own PCM from `tam.mml()` (variance estimated) with the slope-parameterized models by LR: the two are nested mathematically, but their numerical integration errors differ at TAM's default 21 nodes; the LR can even be negative.
+- With mixed TAM and xxirt objects, look only at `LRtest`; TAM warns when computing the GHP column for the xxirt object, and that column is wrong.
+
+**See also**: A3, A5.
+
+## C4. Overall fit
+
+**Problem**: M2, RMSEA, SRMSR, CFI and TLI in addition to $\chi^2$ comparisons.
+
+**Solution**:
+
+```{r c4}
+m2(fit_gpcm)                 # full M2
+m2(fit_sat)
+m2(fit_gpcm, "C2")           # C2, margins reduced to moments
+m2(fit_timss)                # missing data and unequal categories are fine
+```
+
+```{r c4-broken, error = TRUE}
+w <- runif(nrow(sc), 0.5, 2)
+fit_w <- tam.mml.2pl(sc, irtmodel = "GPCM", pweights = w, verbose = FALSE)
+m2(fit_w)                    # not available with weights
+```
+
+**Discussion**: C2 and M2\* collapse the categories into moments of the item scores, so differences between steps are averaged away; to check step discriminations use the full M2 or the score tests of C2. With missing data the margins use all available pairs, which assumes MCAR.
+
+**See also**: `?m2`, B1.
+
+# D. Differential item functioning
+
+## D1. Known groups: which step has DIF
+
+**Problem**: do boys and girls differ in the discrimination or difficulty of some step?
+
+**Solution**: fit the saturated model once, then `dif_test()`:
+
+```{r d1}
+cov <- data.timssAusTwn.scored[, c("IDCNTRY", "ITSEX")]
+cov$country <- factor(cov$IDCNTRY, labels = c("AUS", "TWN"))
+cov$sex     <- factor(cov$ITSEX,   labels = c("girl", "boy"))
+sp_timss <- get_parts(fit_timss)                 # reused below
+d_disc <- dif_test(sp_timss, cov$sex)            # every step discrimination
+d_disc[d_disc$p < 0.10, ]
+dif_test(sp_timss, cov$sex, parm = "diff", by = "item")
+```
+
+**Discussion**: every unit is residualized on all other parameters first (efficient score), so difficulty DIF is not mistaken for discrimination DIF and vice versa. Nothing survives the Holm correction here. With a GPCM fit, discrimination exists only at the item level, and step DIF is either invisible or misreported as difficulty DIF.
+
+**See also**: `?dif_test`, D2, D3.
+
+## D2. A covariate related to ability: impact is not DIF
+
+**Problem**: tested against the country, almost every item is flagged.
+
+```{r d2-impact}
+dif_test(sp_timss, cov$country, parm = "diff", by = "item")
+```
+
+**Solution**: the single-group model assumes one $N(0,1)$ distribution for Australian and Taiwanese students alike, and the Taiwanese mean is about 1.5 SD higher. What the test finds is this impact, not DIF. Fit the multigroup model so that the group distributions are part of the model, then test:
+
+```{r d2-mg}
+fit_mg <- tam.mml.3pl(timss, E = tppcm(timss), group = cov$IDCNTRY,
+                      est.variance = FALSE, verbose = FALSE)
+irt_pars(fit_mg, fit = FALSE)$group
+sp_mg <- get_parts(fit_mg)
+dif_test(sp_mg, cov$country, parm = "diff", by = "item")
+dif_test(sp_mg, cov$country, parm = "disc", by = "item")
+```
+
+**Discussion**: three items keep difficulty DIF and three show discrimination DIF between the countries. The same applies to any covariate correlated with ability, including continuous ones; for those use TAM's latent regression (`Y =`) in the same way. DIF trees have the same issue: a split on such a covariate reflects the ability difference first (D4).
+
+**See also**: D1, E3.
+
+## D3. Numeric and ordered covariates
+
+**Problem**: the covariate is trait anger (numeric) or an ordered grouping.
+
+**Solution**: `dif_test()` picks the functional from the covariate type:
+
+```{r d3}
+data("VerbalAggression", package = "psychotools")
+va <- VerbalAggression
+fit_va <- tam.mml.3pl(va$resp, E = tppcm(va$resp, "gpcm"), est.variance = FALSE, verbose = FALSE)
+sp_va <- get_parts(fit_va)
+d_anger <- dif_test(sp_va, va$anger, parm = "diff", by = "item")        # numeric: Cramer-von Mises
+head(d_anger[order(d_anger$p), ], 5)
+anger3 <- cut(va$anger, quantile(va$anger, 0:3 / 3), include.lowest = TRUE, ordered_result = TRUE)
+dif_test(sp_va, anger3, parm = "disc", by = "block")                     # ordered: weighted max LM
+dif_test(sp_va, va$anger, parm = "disc", by = "block", functional = "maxLM")
+```
+
+```{r d3-broken, error = TRUE}
+dif_test(sp_va, replace(va$anger, 1, NA))                                # covariate with NA
+dif_test(sp_va, va$anger[-1])                                            # wrong length
+```
+
+**Discussion**: `functional =` can be `"LM"`, `"maxLMo"`, `"DM"`, `"CvM"` or `"maxLM"`. `maxLM` also estimates the location of the change point. The covariate may not have missing values; drop those persons and refit. With 24 items and 316 students the GPCM is the sensible node model here; the saturated TPPCM would have 96 parameters.
+
+**See also**: D1, D4.
+
+## D4. Unknown grouping: a DIF tree
+
+**Problem**: several covariates, and the data should find the grouping.
+
+**Solution**: `tppcmtree()`, looking at difficulties and discriminations separately. The verbal aggression data are the standard example of psychotree's `pctree()`:
+
+```{r d4}
+tr_diff <- tppcmtree(resp ~ gender + anger, data = va, model = "pcm", parm = "diff", minsize = 50)
+partykit::width(tr_diff)
+partykit::character_split(tr_diff$node$split, tr_diff$data)$name
+tr_disc <- tppcmtree(resp ~ gender + anger, data = va, model = "gpcm", parm = "disc", minsize = 50)
+partykit::width(tr_disc)
+```
+
+```{r d4-broken, error = TRUE}
+tppcmtree(resp ~ gender + anger, data = va, model = "gpcm", parm = "diff", minsize = 50)
+```
+
+**Discussion**: the difficulty tree splits on gender, as `pctree()` does; the discrimination tree does not split. The failed call shows the limiting factor: in some node a category of an item is no longer observed, and the node model cannot be estimated. A larger `minsize` or a less demanding node model (`"pcm"`) helps. `coef(tree)` gives the parameters per node. `model = "gpcm"` with `parm = "all"` reproduces psychotree's `gpcmtree()`.
+
+**See also**: `?tppcmtree`, D1, D2.
+
+# E. Simulation, unsupported models, weights and groups
+
+## E1. Simulating data and estimating power
+
+**Problem**: simulate TPPCM data to estimate the power of a test.
+
+**Solution**: `sim_tppcm()`; trailing `NA` in a row means fewer steps for that item:
+
+```{r e1}
+disc <- rbind(c(1, 1.5, 0.7), c(1, 1.5, 0.7), c(1, 1, NA))
+diff <- rbind(c(-1, 0, 1),    c(-1, 0, 1),    c(-0.5, 0.5, NA))
+head(sim_tppcm(5, disc, diff))
+```
+
+A small power simulation (score test GPCM against the saturated model, $N = 300$):
+
+```{r e1-power}
+set.seed(3)
+A <- outer(c(1, 1, 1.2, 0.8, 1), c(1, 1.5, 0.7)); B <- matrix(c(-1, 0, 1), 5, 3, byrow = TRUE)
+p <- replicate(10, {
+  d <- sim_tppcm(300, A, B)
+  score_test(tam.mml.2pl(d, irtmodel = "GPCM", verbose = FALSE))$p.value
+})
+mean(p < 0.05)
+```
+
+```{r e1-broken, error = TRUE}
+sim_tppcm(10, disc, diff[, 1:2])                 # shapes differ
+```
+
+**Discussion**: use many more replications in practice. `theta =` sets the person parameters, e.g. for a non-normal latent distribution.
+
+**See also**: `?sim_tppcm`.
+
+## E2. Models the package does not handle
+
+**Problem**: which fitted objects are refused?
+
+**Solution**: the package refuses and says why:
+
+```{r e2, error = TRUE}
+set.seed(4)
+th <- rnorm(1000)
+bin <- sapply(1:6, function(i) rbinom(1000, 1, 0.2 + 0.8 * plogis(th - (i - 3.5) / 2)))
+irt_pars(tam.mml.3pl(bin, guess = rep(0.2, 6), est.variance = FALSE, verbose = FALSE))   # guessing
+irt_pars(tam.mml.2pl(sc, irtmodel = "GPCM", Q = cbind(c(1, 1, 0, 0), c(0, 0, 1, 1)),
+                     verbose = FALSE))                                                   # two dimensions
+irt_pars(sc)                                                                             # not a fit
+```
+
+**Discussion**: the package handles unidimensional divide-by-total models (adjacent-category logits linear in $\theta$), including binary items, the RSM, multiple groups, weights and latent regression. The form is checked from the response probabilities, so other models that violate it are stopped as well. Facet models (`tam.mml.mfr()`) and JML are not supported.
+
+**See also**: E3, `?get_parts`.
+
+## E3. Weights, multiple groups and latent regression
+
+**Problem**: which functions work with sampling weights, several groups or a latent regression?
+
+**Solution**:
+
+```{r e3}
+irt_pars(fit_w, fit = FALSE)$SE[1:2, ]                                            # weights enter the SEs
+fit_w1 <- tam.mml.2pl(sc, irtmodel = "GPCM", pweights = w / mean(w), verbose = FALSE)
+irt_pars(fit_w1, fit = FALSE)$SE[1:2, ]                                           # after normalizing
+irt_pars(fit_mg, fit = FALSE)$group                                               # group means and variances
+fit_lr <- tam.mml.3pl(sc, E = tppcm(sc), Y = data.Students[, c("female", "urban")],
+                      est.variance = FALSE, verbose = FALSE)
+p_lr <- irt_pars(fit_lr, fit = FALSE)                                             # warns
+```
+
+**Discussion**: weights are treated as frequency weights, so their sum is the effective sample size; with a mean weight of about 1.25 the SEs above are smaller than without weights. Normalize sampling weights to sum to the number of persons, e.g. `w / mean(w)`; even then the SEs are model-based, not design-based (sandwich) SEs.
+
+| Situation | Available | Not available |
+|---|---|---|
+| weights | parameters, SEs, Wald, score tests, MI | `m2()`, `dif_test()` |
+| multiple groups | parameters, SEs (the group means and variances are part of the parameter vector), all tests, `dif_test()` | `m2()` |
+| latent regression | parameters, SEs (regression coefficients fixed), tests, `dif_test()` | `m2()` |
+
+**See also**: `?get_parts`, D2.

@@ -1,0 +1,49 @@
+Package: tppcm
+Type: Package
+Title: Step Discriminations for the Two-Parameter Partial Credit Model on Top of 'TAM'
+Version: 0.1.0
+Authors@R: person("Jie-Wen", "Tsai", email = "tsai.jiewen@gmail.com", role = c("aut", "cre"))
+Description: Tools for the two-parameter partial credit model (TPPCM; Yu,
+    1991), in which every step of a polytomous item has its own discrimination. Estimation is
+    left to existing software: 'TAM' (tam.mml.3pl() with a step design matrix,
+    tam.mml.2pl(), tam.mml()) and, for the bilinear product form and
+    non-negativity constraints, 'sirt' (xxirt()). The package adds what these
+    packages do not provide: standard errors of step discriminations based on
+    the full observed information, step-level Wald tests, and score tests with
+    modification indices and expected parameter changes for moving down the
+    model ladder saturated TPPCM -> product form -> GPCM -> PCM,
+    limited-information fit statistics (M2, RMSEA, SRMSR, CFI, TLI;
+    Maydeu-Olivares and Joe (2006) <doi:10.1007/s11336-005-1295-9>) for any
+    step design, step contributions to the item information, and score-based
+    tests (Merkle and Zeileis (2013) <doi:10.1007/s11336-012-9302-4>) and
+    model-based trees (Zeileis, Hothorn and Hornik (2008)
+    <doi:10.1198/106186008X319331>) for differential functioning of step
+    discriminations and step difficulties. The generalized partial credit
+    model of Muraki (1992) <doi:10.1177/014662169201600206> is the special
+    case with equal steps within items.
+License: GPL (>= 2)
+Encoding: UTF-8
+Language: en-US
+Depends:
+    R (>= 4.1),
+    TAM
+Imports:
+    CDM,
+    graphics,
+    MASS,
+    sirt,
+    stats
+Suggests:
+    knitr,
+    mirt,
+    numDeriv,
+    partykit,
+    psychotools,
+    psychotree,
+    rmarkdown,
+    strucchange,
+    testthat (>= 3.0.0)
+VignetteBuilder: knitr
+Config/testthat/edition: 3
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 7.3.2
