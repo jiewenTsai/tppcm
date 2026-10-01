@@ -18,7 +18,7 @@ options(width = 90)
 
 1. 模式與套件定位；
 2. 用 TAM 估計 TPPCM；
-3. 參數報表、正確的標準誤、模式適配與資訊函數；
+3. 參數報表、標準誤、模式適配與資訊函數；
 4. 檢定：步驟鑑別度是否相等、GPCM 哪裡不夠用；
 5. 乘積形式；
 6. 步驟鑑別度與步驟難度的 DIF（score-based 檢定、DIF 樹）；
@@ -191,8 +191,6 @@ lr[nested, ]
 
 > **PCM 要用哪一個？** 做概似比比較時，用 `tam.mml.3pl(E = tppcm(dat, "pcm"))`（共同斜率、變異數固定為 1），讓所有模式共用同一種參數化和同一組積分點。`tam.mml()` 估的是變異數；兩種參數化在數學上是巢套的，但在 TAM 預設的 21 個積分點下，數值積分誤差不同。上面兩個 PCM 的對數概似差了 7 單位；題數更多時，和斜率參數化模式的概似比甚至會變成負值。或者把積分點加多，例如 `control = list(nodes = seq(-6, 6, len = 61))`。
 
-> **不要**用 `tam.mml.3pl()` 的 `gammaslope.constr.V` 做等式限制：依我們的經驗它收斂不到最大概似估計值。等式一律寫進 `index`。
-
 # 3. 報表、標準誤、適配度與資訊函數
 
 ## `irt_pars()`：精簡的參數表
@@ -222,17 +220,9 @@ irt_pars(m_gpcm, IRTpars = FALSE)
 irt_pars(m_pcm)
 ```
 
-## 為什麼不直接用 TAM 的標準誤？
+## 標準誤
 
-`tam.mml.3pl()` 會回傳 `se.gammaslope`，但它**沒有考慮斜率和閾值之間的共變數**，明顯偏小。`irt_pars()` 的 SE 用的是整個模式的觀察資訊（Louis 公式），和數值 Hessian 的結果一致。
-
-```{r se-compare}
-st <- irt_pars(m_tppcm, long = TRUE)
-st <- st[st$par == "disc", ]
-round(cbind(est = st$est, se = st$se, TAM_se = m_tppcm$se.gammaslope), 3)
-```
-
-在這份資料上，TAM 的 SE 只有正確值的 30% 到 65% 左右。用它做檢定會嚴重高估顯著性。
+`irt_pars()` 的標準誤來自整個模式的觀察資訊（Louis 公式），所以斜率和閾值之間的共變數都有考慮進去。
 
 `irt_pars(long = TRUE)` 回傳長格式的表，附信賴區間：
 
@@ -242,7 +232,7 @@ head(irt_pars(m_tppcm, long = TRUE, level = 0.90))
 
 ## 整體適配度：`m2()`
 
-`m2()` 計算 Maydeu-Olivares 與 Joe（2006）的有限資訊適配度統計量。TAM 和 sirt 沒有 M2；mirt 有，但只能用在 mirt 本身能設定的模式，`tppcm(dat, "step")`、自訂 `index` 設計和乘積形式都不行。`m2()` 先算各邊際對飽和參數的導數，再乘上 `get_parts()` 的 Jacobian，所以任何步驟設計都能用。
+`m2()` 計算 Maydeu-Olivares 與 Joe（2006）的有限資訊適配度統計量。`m2()` 先算各邊際對飽和參數的導數，再乘上 `get_parts()` 的 Jacobian，所以任何步驟設計都能用。
 
 ```{r m2}
 m2(m_gpcm)            # full M2: all univariate and bivariate margins
@@ -253,12 +243,8 @@ m2(m_gpcm, "C2")      # univariate margins plus bivariate cross products
 - `"M2"` 用所有單變量和雙變量邊際，自由度最多；預設 `"auto"` 在邊際數不超過 2000 時用它，否則改用 `"C2"`。
 - `"C2"`（Cai & Monroe, 2014）和 `"M2*"` 把邊際約化成動差，自由度少很多；飽和 TPPCM 題數少時自由度可能 ≤ 0，無法計算。
 - RMSEA2 $=\sqrt{\max(M_2-df,0)/(N\,df)}$；SRMSR 是觀察與模式隱含的題目分數相關之差的均方根；CFI、TLI 以獨立模式（各題獨立、類別比例自由）為基準。
-- 只限單一群組。有缺失值時，每個邊際用有作答相關題目的人計算，並依各對邊際共同有作答的人數調整共變數矩陣；這在完全隨機缺失（MCAR）下成立。模擬（15% MCAR 缺失）中 M2、C2、M2\* 的平均分別為 244.98、19.86、3.88（df 244、20、4），拒絕率 .03–.05。
+- 只限單一群組。有缺失值時，每個邊際用有作答相關題目的人計算，並依各對邊際共同有作答的人數調整共變數矩陣；這在完全隨機缺失（MCAR）下成立。
 - 同一題各步鑑別度不同時，完整 M2 可能拒絕 GPCM，而 C2 看不出來：C2 和 M2\* 把各類別合併成題目分數的動差，步驟之間的差異在合併時被平均掉。要檢查步驟鑑別度，請用完整 M2 或第 4 節的 score test。
-
-驗證：二元 2PL 時和 mirt 的 `M2()` 完全一致；GPCM 的 `"C2"` 和 mirt 的相關為 .9996。在 GPCM 正確的模擬中（8 題、4 類、$N = 1000$，100 次），完整 M2 的平均為 243.98（df 244），拒絕率 .05；C2 為 19.90（df 20），.04；M2\* 為 4.21（df 4），.05。
-
-注意：TAM 物件裡的 `pi.k`（也就是 `IRT.posterior()` 的 `prob.theta` 屬性）是事後分配的平均，不是擬合時用的常態先驗。`m2()` 用的是估計出的常態分配；直接拿 `prob.theta` 當權重，SRMSR 和 M2 都會算錯。
 
 ## 資訊函數：`step_info()`
 
@@ -415,19 +401,7 @@ dif_test(sp_mg, cov$country, parm = "disc", by = "item")
 
 ### 為什麼要用 TPPCM 擬合，而不是 GPCM？
 
-`dif_test()` 只能檢定擬合模式裡有的參數。用 GPCM 擬合時，鑑別度只有題目層次。模擬（6 題、4 類、$N = 1500$、二元共變數，200 次；任一單位在 Holm 校正後拒絕的比例）顯示會損失什麼：
-
-| `z` 上的 DIF | TPPCM：逐步鑑別度 | TPPCM：逐題鑑別度 | TPPCM：逐題難度 | GPCM：逐題鑑別度 | GPCM：逐題難度 |
-|---|---|---|---|---|---|
-| 無 | .07 | .02 | .05 | .04 | .05 |
-| 一步變平（第 3 題第 2 步） | 1.00 | 1.00 | .05 | .98 | **.41** |
-| 兩步反向（第 2 步變平、第 3 步變陡，題目平均不變） | .77 | .84 | .06 | **.07** | **.20** |
-| 整題鑑別度 | .87 | 1.00 | .06 | 1.00 | .05 |
-| 難度（第 5 題） | .04 | .03 | 1.00 | .03 | 1.00 |
-
-- TPPCM 擬合下，鑑別度和難度的檢定互不干擾：難度 DIF 不會讓鑑別度檢定拒絕（.03–.04），鑑別度 DIF 也不會讓難度檢定拒絕（.05–.06）。
-- GPCM 擬合下，兩步反向的 DIF 幾乎看不到（.07），反而有 20% 被當成**難度** DIF；單一步驟的 DIF 也有 41% 被誤報成難度 DIF。
-- 兩步反向時，逐步檢定分別在第 2 步（.60）和第 3 步（.42）拒絕。
+`dif_test()` 只能檢定擬合模式裡有的參數。用 GPCM 擬合時，鑑別度只有題目層次，所以單一步驟的 DIF 會被漏掉，或被當成難度 DIF。要檢定步驟鑑別度，請用飽和 TPPCM 擬合。
 
 ## `tppcmtree()`：DIF 樹
 
@@ -448,51 +422,26 @@ tr_diff
 tr_disc
 ```
 
-前一節的衝擊問題存在於每一種以邊際模式為基礎的 DIF 樹（包括 psychotree 的 `gpcmtree()`）：和能力相關的共變數一定會被用來分裂。遇到樹在這類共變數上做第一次分裂時，請解讀成能力差異，並把子節點的題目參數用 `coef()` 取出、換算到共同量尺後再比較；或者像上面那樣在多群組估計物件上用 `dif_test()`。
+前一節的衝擊問題存在於每一種以邊際模式為基礎的 DIF 樹：和能力相關的共變數一定會被用來分裂。遇到樹在這類共變數上做第一次分裂時，請解讀成能力差異，並把子節點的題目參數用 `coef()` 取出、換算到共同量尺後再比較；或者像上面那樣在多群組估計物件上用 `dif_test()`。
 
 飽和 TPPCM 的樹每個節點需要幾百名受試者。若某個節點裡某題的某個類別已經沒有人選，估計會停下來並提示加大 `minsize`；`model = "gpcm"` 或 `"pcm"` 需要的人數較少。
 
-這裡有個細節很重要：`partykit::mob()` 做部分參數檢定時，是先對全部參數去相關，再挑出要檢定的成分。$a$ 與 $b$ 的估計值相關，所以 $b$ 的不穩定會滲進 $a$ 的檢定。`tppcmtree()` 預設 `orthogonal = TRUE`：先把受檢定那一組的 score 對另一組殘差化（效率 score，$s_a - s_b \hat I_{bb}^{-1}\hat I_{ba}$）。在 60 組只有難度 DIF 的模擬資料中，未正交化的 `disc` 樹在根節點分裂了 55%，正交化後為 0%，而偵測步驟鑑別度 DIF 的檢定力維持在 95%。
+這裡有個細節很重要：`partykit::mob()` 做部分參數檢定時，是先對全部參數去相關，再挑出要檢定的成分。$a$ 與 $b$ 的估計值相關，所以 $b$ 的不穩定會滲進 $a$ 的檢定。`tppcmtree()` 預設 `orthogonal = TRUE`：先把受檢定那一組的 score 對另一組殘差化（效率 score，$s_a - s_b \hat I_{bb}^{-1}\hat I_{ba}$）。
 
-分開檢定也很重要：全部參數一起檢定時，強的位置 DIF 會先把樣本切開，步驟鑑別度的 DIF 容易被蓋過；一次檢定很多參數在中等樣本下也偏寬鬆（無 DIF 的小模擬中，`"all"` 的分裂率約 9%，`"disc"`、`"diff"` 約 5%）。
+分開檢定也很重要：全部參數一起檢定時，強的位置 DIF 會先把樣本切開，步驟鑑別度的 DIF 容易被蓋過；一次檢定很多參數在中等樣本下也偏寬鬆。
 
 樹所用的個人 score 可以用 `get_parts(fit, "estfun")`（或 `"estfun.si"`）取出。`param = "irt"`（預設）時，鑑別度的檢定代表「難度固定、鑑別度改變」；`param = "si"` 則是「截距固定、斜率改變」。兩者是不同的假設。
 
-### 與 psychotree 對照
+### 範例：語言攻擊資料
 
-psychotools 內附的 De Boeck 與 Wilson（2004）語言攻擊資料，是 psychotree `pctree()` 的標準範例：316 名學生、24 題計分 0–2，共變數為性別和特質憤怒。`model = "pcm"` 搭配 `parm = "diff"` 就是 psychotree 的 PCM 樹（它用條件最大概似法；分裂結果一致）：
+psychotools 內附的 De Boeck 與 Wilson（2004）語言攻擊資料有 316 名學生、24 題計分 0–2，共變數為性別和特質憤怒。以下是看難度的 PCM 樹：
 
 ```{r tree-va}
 data("VerbalAggression", package = "psychotools")
 tr_va <- tppcmtree(resp ~ gender + anger, data = VerbalAggression,
                    model = "pcm", parm = "diff", minsize = 50)
 partykit::character_split(tr_va$node$split, tr_va$data)$name
-if (requireNamespace("psychotree", quietly = TRUE)) {
-  log <- utils::capture.output(                      # psychotree prints a harmless internal error here
-    pt <- psychotree::pctree(resp ~ gender + anger, data = VerbalAggression), type = "message")
-  partykit::character_split(pt$node$split, pt$data)$name
-}
 ```
-
-模擬（6 題、4 類、$N = 1500$，一個二元共變數 `z` 和一個雜訊共變數，重複 40 次）更有系統地比較這些樹。下表列出根節點在 `z` 分裂的比例；在雜訊共變數上分裂的比例，所有方法都不超過 .075。
-
-| 資料 / `z` 上的 DIF | `pctree` | tppcmtree pcm, diff | `gpcmtree` | tppcmtree gpcm, all | `gpcmtree` 只看斜率 | tppcmtree gpcm, disc | tppcmtree gpcm, diff | tppcmtree tppcm, disc | tppcmtree tppcm, diff |
-|---|---|---|---|---|---|---|---|---|---|
-| PCM，無 | .08 | .08 | .05 | .05 | .03 | .05 | .08 | .00 | .03 |
-| PCM，難度 | 1 | 1 | 1 | 1 | **.25** | **.00** | 1 | .00 | 1 |
-| GPCM，無 | .10 | .10 | .08 | .08 | .03 | .00 | .10 | .00 | .05 |
-| GPCM，難度 | 1 | 1 | 1 | 1 | **.20** | **.05** | 1 | .00 | 1 |
-| GPCM，題目鑑別度 | .23 | .05 | .93 | .93 | .83 | .97 | .03 | .85 | .05 |
-| TPPCM，無 | .03 | .00 | .00 | .00 | .00 | .05 | .05 | .00 | .03 |
-| TPPCM，單一步驟鑑別度 | .08 | .03 | .62 | .62 | .93 | .90 | .13 | .88 | .00 |
-| TPPCM，兩步反向（題目平均不變） | .10 | .10 | .10 | .10 | .05 | .03 | .10 | **.55** | .05 |
-| GPCM，兩步反向（題目平均不變） | .20 | .30 | .42 | .42 | .35 | .15 | .28 | **.75** | .05 |
-
-- PCM 版（`parm = "diff"`）的結果和 `pctree()` 一致；GPCM 版用 `"all"` 時和 `gpcmtree()` 完全相同。
-- `gpcmtree()` 若只檢定斜率，難度 DIF 會讓它在斜率上分裂（.20–.25）；正交化後的 `parm = "disc"` 不會（.00–.05）。
-- 只檢定鑑別度，比全部參數一起檢定更能抓到鑑別度 DIF（.90 對 .62）。
-- `pctree()` 會把一部分題目鑑別度 DIF 當成難度 DIF（.23），PCM 節點加上 `parm = "diff"` 則不會（.05）。
-- 同一題兩步往相反方向變化時，只有 TPPCM 節點的鑑別度樹抓得到（.55、.75）。PCM 和 GPCM 的樹不是看不到（.03–.10），就是在難度上分裂（.20–.42），也就是把它當成位置的 DIF。樹要對多個共變數做 Bonferroni 校正，所以檢定力低於已知分組時的 `dif_test()`（.77）。
 
 # 7. `get_parts()`：取出數學組件
 
@@ -526,13 +475,6 @@ score_test(sp); mi(sp)[1:3, ]
 | `"data"`、`"nobs"`、`"loglik"`、`"npar"` | 作答資料、人數、對數概似、參數個數 |
 | `"model"`、`"groups"`、`"design"` | 模式類型、各組平均數與變異數、設計陣列 `E` |
 
-## 計算方式（簡述）
-
-- **score 與資訊**：個人 score 是完整資料 score 的事後期望值（Fisher identity）；觀察資訊用 Louis 公式 $I = \sum_n \{E[-\partial^2\ell_c] - \mathrm{Var}[\partial\ell_c]\}$ 計算。只需要 `IRT.posterior()` 和 `IRT.irfprob()`，所以 TAM 和 xxirt 的物件都能用。
-- **受限模式**寫成飽和參數的函數 $h(\vartheta)$，Jacobian 為 $J$。它的觀察資訊是 $J'IJ - \sum_k g_k \nabla^2 h_k$；第二項只在雙線性的乘積形式時不為 0。少了它，$\alpha,\gamma$ 的 SE 會差 1–2%。
-- **score test**：放寬的方向為 $D$ 時，$S = g_D'\big(D'ID - D'IJ(J'IJ)^{-1}J'ID\big)^{-1}g_D$。對飽和模式時等於 $g'I^{-1}g$；MI 是 $D$ 只取單一 $a_{il}$ 的 1 自由度特例。
-- **PCM**：固定潛在分配時，變異數的改變等於所有斜率同乘一個常數，所以 TAM 的 PCM 以「共同斜率」處理。
-
 # 8. 建議流程與注意事項
 
 ## 建議流程
@@ -546,14 +488,10 @@ score_test(sp); mi(sp)[1:3, ]
 
 ## 注意事項
 
-- **樣本數**：對飽和模式的檢定（df 大）在每題每類別少於約 60 人時偏寬鬆；相鄰模式之間的檢定（例如 GPCM 對乘積形式，df 2）在 $N = 250$ 時就能維持顯著水準。
-- **下界**：估計值落在 $a_{il} = 0$ 時，LR 和 score test 的 $\chi^2$ 參考分配不成立。估計值接近 0 會使步驟難度 $b = d/a$ 不穩定；這類題目請改報斜率–截距形式（`IRTpars = FALSE`）。
 - **類別數**：`tppcm()` 允許各題類別數不同（每題從 0 到最高分的每個類別都要有人選）；`xxirt_tppcm()` 和乘積形式則需要各題類別數相同。
 - **計分**：類別要編成 0, 1, …；1–5 計分的李克特資料請先減 1，否則 `tppcm()` 會報錯停止。
 - **可用的估計物件**：來自 TAM 與 xxirt 的單向度、除總式模式（相鄰類別對數勝算是 $\theta$ 的直線），包括二元題、RSM、多群組、加權（`pweights`）與潛在迴歸（會警告）。有猜測參數的模式、多面向模式（`tam.mml.mfr()`）、JML 與多向度模式會被拒絕。加權時 `m2()`、`dif_test()` 不能用；潛在迴歸時 `m2()` 不能用。
-- **潛在分配**：所有計算都把潛在分配固定在估計值上。
 - **與 PCM 比較**：LR 比較請用 `tppcm(dat, "pcm")` 的 PCM，或增加積分點。`tam.mml()`（估變異數）和斜率參數化的模式在預設積分點下不能直接相減。
-- **TAM 的陷阱**：`gammaslope.constr.V` 做等式限制不會收斂到最大概似估計值；用 `userfct.gammaslope` 截斷也不是 $a \ge 0$ 的正確受限估計。
 
 # 參考文獻
 

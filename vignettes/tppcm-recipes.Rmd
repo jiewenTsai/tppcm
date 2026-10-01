@@ -103,7 +103,7 @@ fit_fix <- tam.mml.3pl(sc, E = tppcm(sc), est.variance = FALSE, verbose = FALSE,
                        gammaslope.fixed = cbind(2, 3))                  # sc1 step 2 fixed at 3
 ```
 
-**Discussion**: the numbers in `index` need not be consecutive; they are renumbered. Do not use TAM's `gammaslope.constr.V` for equality restrictions, it does not converge to the maximum likelihood estimate.
+**Discussion**: the numbers in `index` need not be consecutive; they are renumbered.
 
 **See also**: B1 (report), C3 (model comparison).
 
@@ -133,7 +133,7 @@ irt_pars(fit_timss, se = FALSE)
 ```{r a5}
 fit_r1 <- xxirt_tppcm(as.matrix(sc), "rank1")
 irt_pars(fit_r1, restricted = TRUE)              # alpha_i and gamma_l
-dim(xxirt_vcov(fit_r1))                          # sirt's vcov() fails with shared parameters
+dim(xxirt_vcov(fit_r1))                          # covariance matrix of the xxirt fit
 ```
 
 An estimate at the bound 0 is marked in the report. The third step of `Work` in `TAM::data.gpcm` is such a case: TAM gives $a = -0.04$ with a meaningless difficulty, xxirt gives $a = 0$:
@@ -181,19 +181,18 @@ knitr::kable(cbind(p$items[, 1:3], p$SE[, 1:3]), digits = 2,
 
 **See also**: `?irt_pars`, B2, C4.
 
-## B2. Why not TAM's standard errors
+## B2. Standard errors and confidence intervals
 
-**Problem**: `tam.mml.3pl()` already returns `se.gammaslope`; why compute something else?
+**Problem**: standard errors and confidence intervals for the step discriminations.
 
 **Solution**:
 
 ```{r b2}
-st <- irt_pars(fit_sat, long = TRUE)
-st <- st[st$par == "disc", ]
-round(cbind(est = st$est, tppcm_se = st$se, TAM_se = fit_sat$se.gammaslope), 3)
+st <- irt_pars(fit_sat, long = TRUE, level = 0.90)
+head(st[st$par == "disc", ])
 ```
 
-**Discussion**: TAM's `se.gammaslope` ignores the covariance between slopes and thresholds and is only about 30–65% of the correct value. `irt_pars()` uses the observed information of the whole model (Louis' formula), which agrees with a numerical Hessian.
+**Discussion**: `irt_pars()` uses the observed information of the whole model (Louis' formula), including the covariance between slopes and thresholds. `level =` sets the confidence level.
 
 **See also**: `vignette("tppcm-tutorial")` Section 3.
 
@@ -414,7 +413,7 @@ dif_test(sp_va, va$anger[-1])                                            # wrong
 
 **Problem**: several covariates, and the data should find the grouping.
 
-**Solution**: `tppcmtree()`, looking at difficulties and discriminations separately. The verbal aggression data are the standard example of psychotree's `pctree()`:
+**Solution**: `tppcmtree()`, looking at difficulties and discriminations separately. With the verbal aggression data:
 
 ```{r d4}
 tr_diff <- tppcmtree(resp ~ gender + anger, data = va, model = "pcm", parm = "diff", minsize = 50)
@@ -428,7 +427,7 @@ partykit::width(tr_disc)
 tppcmtree(resp ~ gender + anger, data = va, model = "gpcm", parm = "diff", minsize = 50)
 ```
 
-**Discussion**: the difficulty tree splits on gender, as `pctree()` does; the discrimination tree does not split. The failed call shows the limiting factor: in some node a category of an item is no longer observed, and the node model cannot be estimated. A larger `minsize` or a less demanding node model (`"pcm"`) helps. `coef(tree)` gives the parameters per node. `model = "gpcm"` with `parm = "all"` reproduces psychotree's `gpcmtree()`.
+**Discussion**: the difficulty tree splits on gender; the discrimination tree does not split. The failed call shows the limiting factor: in some node a category of an item is no longer observed, and the node model cannot be estimated. A larger `minsize` or a less demanding node model (`"pcm"`) helps. `coef(tree)` gives the parameters per node.
 
 **See also**: `?tppcmtree`, D1, D2.
 
