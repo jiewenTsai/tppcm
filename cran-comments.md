@@ -1,18 +1,38 @@
 ## R CMD check results
 
-Local `R CMD check --as-cran --run-donttest` (macOS 27, R 4.5, TAM 4.3-25,
-sirt 4.2-133, 2026-10-02): 0 errors | 0 warnings | 3 notes
+0 errors | 0 warnings | 1 note
 
-* New submission.
-* "unable to verify current time": the check machine had no network access
-  (not a package issue).
-* HTML validation skipped: the local HTML Tidy is too old (not a package issue).
+* This is a new submission.
 
-`urlchecker::url_check()` and `spelling::spell_check_package()`: see the
-session log; no broken URLs.
+## Test environments
 
-Cross-platform checks (win-builder R-devel, macOS builder, R-hub) have not
-been run yet; they require the maintainer's mailbox and a GitHub repository.
+Local:
+
+* macOS 27, R 4.5, TAM 4.3-25, sirt 4.2-133:
+  `R CMD check --as-cran --run-donttest`: 0 errors | 0 warnings | 3 notes
+  (new submission; "unable to verify current time" because the machine
+  had no network access; HTML validation skipped because the local HTML
+  Tidy is too old. The last two are local and not package issues.)
+
+GitHub Actions (r-lib/actions check-standard, `--as-cran`, 2026-10-01):
+
+| Platform | R | Status |
+|---|---|---|
+| macOS (aarch64) | 4.6.1 | OK |
+| Windows Server 2022 (x86_64, ucrt) | 4.6.1 | OK |
+| Ubuntu 24.04 (x86_64) | 4.6.1 | OK |
+| Ubuntu 24.04 (x86_64) | 4.5.3 (oldrel-1) | OK |
+| Ubuntu 24.04 (x86_64) | R-devel (2026-09-30 r90605) | OK |
+
+All 230 testthat expectations pass on every platform.
+
+R-hub v2 (linux, windows, macos): PENDING
+
+win-builder (R-devel): PENDING (to be run by the maintainer with
+`devtools::check_win_devel()`)
+
+`urlchecker::url_check()` and `spelling::spell_check_package()`: no broken
+URLs, no misspellings.
 
 ## Notes for submission
 
