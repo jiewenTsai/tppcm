@@ -1,5 +1,9 @@
 # tppcm
 
+<!-- badges: start -->
+[![R-CMD-check](https://github.com/jiewenTsai/tppcm/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/jiewenTsai/tppcm/actions/workflows/R-CMD-check.yaml)
+<!-- badges: end -->
+
 Step discriminations for the two-parameter partial credit model (TPPCM),
 built on top of **TAM**.
 
