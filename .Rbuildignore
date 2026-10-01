@@ -6,6 +6,8 @@
 ^_pkgdown\.yml$
 ^docs$
 ^pkgdown$
-^data$
-^R/data\.R$
-^man/(yu1991|ex_steps|ex_dif|ex_survey)\.Rd$
+^LICENSE\.md$
+^\.github$
+^\.gitattributes$
+^\.gitignore$
+^\.DS_Store$
