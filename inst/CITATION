@@ -3,10 +3,10 @@ bibentry(
   title = "{tppcm}: Step Discriminations for the Two-Parameter Partial Credit Model on Top of {TAM}",
   author = person("Jie-Wen", "Tsai"),
   year = "2026",
-  note = paste("R package version", utils::packageVersion("tppcm")),
+  note = paste("R package version", meta$Version),
   textVersion = paste0("Tsai, J.-W. (2026). tppcm: Step discriminations for the two-parameter ",
                        "partial credit model on top of TAM. R package version ",
-                       utils::packageVersion("tppcm"), ".")
+                       meta$Version, ".")
 )
 
 bibentry(
