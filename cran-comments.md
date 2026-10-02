@@ -1,3 +1,11 @@
+## Resubmission
+
+This is a resubmission. In this version I have:
+
+* Fixed `inst/CITATION`, which called `utils::packageVersion("tppcm")` and
+  therefore failed when the package was not installed. It now uses
+  `meta$Version`.
+
 ## R CMD check results
 
 0 errors | 0 warnings | 1 note
