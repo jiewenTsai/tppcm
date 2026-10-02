@@ -34,9 +34,6 @@ R-hub v2 (2026-10-01; all three jobs completed successfully):
 | windows | R-devel |
 | macos (x86_64) | R-devel |
 
-win-builder (R-devel): PENDING (to be run by the maintainer with
-`devtools::check_win_devel()`)
-
 `urlchecker::url_check()` and `spelling::spell_check_package()`: no broken
 URLs, no misspellings.
 
