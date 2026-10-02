@@ -11,3 +11,4 @@
 ^\.gitattributes$
 ^\.gitignore$
 ^\.DS_Store$
+^CRAN-SUBMISSION$
