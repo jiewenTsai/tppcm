@@ -39,7 +39,9 @@ manual, DATE_GHA):
 
 GHA_TABLE
 
-win-builder: WINBUILDER_RESULT
+win-builder (R-devel 2026-10-05 r90641 ucrt, 2026-10-06; run on the same
+sources with the development version number 0.1.0.9000): 0 errors |
+0 warnings | 1 note, including the PDF manual.
 
 `urlchecker::url_check()` and `spelling::spell_check_package()`: no broken
 URLs, no misspellings.
