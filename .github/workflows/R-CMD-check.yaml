@@ -56,3 +56,10 @@ jobs:
           upload-snapshots: true
           args: 'c("--as-cran")'
           build_args: 'c("--compact-vignettes=gs+qpdf")'
+
+      - name: Show LaTeX log of the PDF manual
+        if: failure()
+        run: |
+          R CMD Rd2pdf --no-preview --no-clean --output=manual.pdf . || true
+          for f in .Rd2pdf*/Rd2.log; do echo "== $f"; grep -n -A3 '^!' "$f" | head -60; tail -40 "$f"; done
+        shell: bash
