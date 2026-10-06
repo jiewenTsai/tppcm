@@ -42,8 +42,9 @@ jobs:
       - uses: r-lib/actions/setup-tinytex@v2
 
       - name: Install LaTeX packages for the PDF manual
-        run: tlmgr install inconsolata
-        shell: bash
+        run: |
+          tlmgr update --self
+          tlmgr install inconsolata
 
       - uses: r-lib/actions/setup-r-dependencies@v2
         with:
