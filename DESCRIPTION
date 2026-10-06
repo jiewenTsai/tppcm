@@ -1,7 +1,7 @@
 Package: tppcm
 Type: Package
 Title: Step Discriminations for the Two-Parameter Partial Credit Model on Top of 'TAM'
-Version: 0.1.0
+Version: 0.1.0.9000
 Authors@R: person("Jie-Wen", "Tsai", email = "tsai.jiewen@gmail.com", role = c("aut", "cre"))
 Description: Tools for the two-parameter partial credit model (TPPCM; Yu,
     1991), in which every step of a polytomous item has its own discrimination. Estimation is
@@ -14,11 +14,14 @@ Description: Tools for the two-parameter partial credit model (TPPCM; Yu,
     model ladder saturated TPPCM -> product form -> GPCM -> PCM,
     limited-information fit statistics (M2, RMSEA, SRMSR, CFI, TLI;
     Maydeu-Olivares and Joe (2006) <doi:10.1007/s11336-005-1295-9>) for any
-    step design, step contributions to the item information, and score-based
-    tests (Merkle and Zeileis (2013) <doi:10.1007/s11336-012-9302-4>) and
-    model-based trees (Zeileis, Hothorn and Hornik (2008)
-    <doi:10.1198/106186008X319331>) for differential functioning of step
-    discriminations and step difficulties. The generalized partial credit
+    step design, step contributions to the item information, and tests of
+    differential step functioning across groups: per-step Lagrange multiplier
+    tests from one multigroup fit (Glas, 1998), with the generalized score
+    test of Boos (1992) <doi:10.1080/00031305.1992.10475921>, likelihood
+    ratio tests with configural, metric, scalar and partial multigroup
+    designs, score-based tests (Merkle and Zeileis (2013)
+    <doi:10.1007/s11336-012-9302-4>) and model-based trees (Zeileis, Hothorn
+    and Hornik (2008) <doi:10.1198/106186008X319331>). The generalized partial credit
     model of Muraki (1992) <doi:10.1177/014662169201600206> is the special
     case with equal steps within items.
 License: GPL (>= 2)

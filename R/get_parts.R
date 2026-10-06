@@ -10,13 +10,13 @@
 #'
 #' Supported fits (the model is detected automatically):
 #'
-#' | Fit | `model` |
-#' |---|---|
-#' | [TAM::tam.mml.3pl()] with [tppcm()] | `"E"` (linear step design; fixed steps detected) |
-#' | [TAM::tam.mml.2pl()], `irtmodel = "2PL"` | `"tppcm"` (saturated TPPCM = NRM) |
-#' | [TAM::tam.mml.2pl()], `irtmodel = "GPCM"` | `"gpcm"` |
-#' | [TAM::tam.mml()] | `"pcm"` (free latent variance) |
-#' | [xxirt_tppcm()] | `"tppcm"`, `"gpcm"`, `"rank1"` (product form) |
+#' | Fit | `model` | `formula` |
+#' |---|---|---|
+#' | [TAM::tam.mml.3pl()] with [tppcm()] | `"E"` (linear step design; fixed steps detected) | detected from `E`: `~ 1`, `~ item`, `~ step`, `~ item * step`, or `NULL` (custom `index`) |
+#' | [TAM::tam.mml.2pl()], `irtmodel = "2PL"` | `"tppcm"` (saturated TPPCM = NRM) | `~ item * step` |
+#' | [TAM::tam.mml.2pl()], `irtmodel = "GPCM"` | `"gpcm"` | `~ item` |
+#' | [TAM::tam.mml()] | `"pcm"` (free latent variance) | `~ 1` |
+#' | [xxirt_tppcm()] | `"tppcm"`, `"gpcm"`, `"rank1"` | its `design` |
 #'
 #' Components (`what`):
 #'
@@ -33,7 +33,8 @@
 #' | `"jacobian"`, `"curvature"` | Jacobian of the fitted model in the saturated space and its curvature term |
 #' | `"posterior"`, `"nodes"`, `"prior"`, `"probs"` | posterior, quadrature nodes, latent distribution at the nodes, item response probabilities |
 #' | `"data"`, `"nobs"`, `"loglik"`, `"npar"` | responses, number of persons, log-likelihood, number of parameters |
-#' | `"model"`, `"groups"`, `"design"` | model type, latent means and variances, design array `E` |
+#' | `"model"`, `"formula"` | type of fit, and its design formula (see [tppcm()]; `NULL` for a custom design) |
+#' | `"groups"`, `"design"` | latent means and variances, design array `E` |
 #'
 #' The fitted model is a map \eqn{h(\vartheta)} into the saturated
 #' parameters with Jacobian \eqn{J}; its observed information is
@@ -95,7 +96,7 @@ get_parts <- function(x, what = NULL, model = NULL, fixed = NULL) {
                  "se.sat", "information", "information.opg", "gradient", "scores", "estfun",
                  "estfun.si", "jacobian",
                  "curvature", "posterior", "nodes", "prior", "probs", "data", "nobs", "loglik",
-                 "npar", "model", "groups", "design")
+                 "npar", "model", "formula", "groups", "design")
 
 .part <- function(x, what) {
   if (!what %in% .part_names) stop("unknown component '", what, "'; see ?get_parts", call. = FALSE)
@@ -111,7 +112,7 @@ get_parts <- function(x, what = NULL, model = NULL, fixed = NULL) {
     jacobian = x$J, curvature = x$curv,
     posterior = x$post, nodes = x$theta, prior = x$weights, probs = x$probs,
     data = x$data, nobs = x$nobs, loglik = x$loglik, npar = .npar(x),
-    model = x$model, groups = x$groups, design = x$E)
+    model = x$model, formula = .design_formula(.fit_design(x)), groups = x$groups, design = x$E)
 }
 
 .npar <- function(x) ncol(x$J)      # includes the free group means and variances
@@ -208,7 +209,7 @@ nobs.tppcm_parts <- function(object, ...) object$nobs
                  restricted = data.frame(par = sc, est = as.numeric(est),
                                          se = sqrt(diag(V))[sc], row.names = NULL),
                  E = E, fixed = fixed, n_loc = sum(grepl("^loc:", colnames(J))),
-                 groups = groups, data = dat,
+                 groups = groups, grp = grp, data = dat,
                  weights = .prior_weights(fit, post, theta),
                  weighted = !is.null(wts), latreg = latreg,
                  loglik = tryCatch(as.numeric(stats::logLik(fit)), error = function(e) NA_real_)),
@@ -259,12 +260,9 @@ nobs.tppcm_parts <- function(object, ...) object$nobs
   lev <- sort(unique(g))
   v <- as.numeric(fit$variance)
   var_g <- if (length(v) == length(g)) v[match(lev, g)] else rep(v, length.out = length(lev))
-  data.frame(group = lev, MEAN = as.numeric(as.matrix(fit$beta)[seq_along(lev), 1]), VAR = var_g)
+  lab <- if (!is.null(fit$groups) && length(fit$groups) == length(lev)) fit$groups else lev   # TAM recodes group to 1..G
+  data.frame(group = lab, MEAN = as.numeric(as.matrix(fit$beta)[seq_along(lev), 1]), VAR = var_g)
 }
-
-.model_label <- c(E = "step design (tam.mml.3pl)", tppcm = "saturated TPPCM",
-                  gpcm = "GPCM", pcm = "PCM (free variance)",
-                  pcm_fixed = "PCM (fixed variance)", rank1 = "product form (rank 1)")
 
 #' @export
 print.tppcm_parts <- function(x, digits = 3, ...) {
@@ -276,24 +274,36 @@ print.tppcm_parts <- function(x, digits = 3, ...) {
 }
 
 .label <- function(x) {
-  lab <- if (x$model == "E") sprintf("%s (tam.mml.3pl)", .design_kind(x)) else .model_label[[x$model]]
+  code <- .fit_design(x)
+  lab <- if (code %in% names(.design_codes)) sprintf("%s, design %s", .design_names[[code]], .design_codes[[code]])
+         else switch(code, custom = "custom step design", fixed = "fixed-slope design",
+                     pcm_fixed = "PCM (fixed slopes and variance)")
+  if (x$model == "pcm") lab <- paste(lab, "(TAM: slope 1, free variance)")
+  if (x$model == "E") {
+    if (isTRUE(attr(code, "fixed"))) lab <- paste(lab, "with fixed steps")
+    lab <- paste(lab, "(tam.mml.3pl)")
+  }
   if (isTRUE(x$n_loc > 0)) lab <- sprintf("%s, %d free location parameters", lab, x$n_loc)
   lab
 }
 
-# Which of the common designs a tam.mml.3pl step design is
-.design_kind <- function(x) {
+# Design of the fitted model: "pcm", "gpcm", "step", "rank1", "tppcm" (the
+# design formulas of tppcm()), "custom", "fixed" or "pcm_fixed"; for
+# tam.mml.3pl fits detected from the step design, with attribute "fixed" when
+# some steps are fixed
+.fit_design <- function(x) {
+  if (x$model != "E") return(if (x$model == "pcm") "pcm" else x$model)
   pidx <- x$parindex; ia <- which(pidx$type == "a")
   A <- x$J[ia, .slope_cols(x$J, pidx), drop = FALSE]
-  fixed <- if (any(rowSums(A != 0) == 0)) " with fixed steps" else ""
-  if (!ncol(A)) return("fixed-slope design")
+  fixed <- any(rowSums(A != 0) == 0)
+  if (!ncol(A)) return("fixed")
   per_item <- apply(A, 2, function(v) length(unique(pidx$itemnr[ia][v != 0])))
   per_step <- apply(A, 2, function(v) length(unique(pidx$step[ia][v != 0])))
   n_item <- length(unique(pidx$itemnr)); n_step <- max(pidx$step)
-  kind <- if (all(colSums(A != 0) == 1) && ncol(A) == sum(rowSums(A != 0) > 0)) "saturated TPPCM"
-          else if (ncol(A) == 1) "PCM design"
-          else if (all(per_item == 1) && ncol(A) == n_item) "GPCM design"
-          else if (all(per_step == 1) && ncol(A) == n_step) "step design"
-          else "custom step design"
-  paste0(kind, fixed)
+  code <- if (all(colSums(A != 0) == 1) && ncol(A) == sum(rowSums(A != 0) > 0)) "tppcm"
+          else if (ncol(A) == 1) "pcm"
+          else if (all(per_item == 1) && ncol(A) == n_item) "gpcm"
+          else if (all(per_step == 1) && ncol(A) == n_step) "step"
+          else "custom"
+  structure(code, fixed = fixed)
 }

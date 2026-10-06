@@ -90,20 +90,34 @@ p_bad <- irt_pars(fit_bad, fit = FALSE)
 
 **Problem**: fit something more parsimonious than the saturated model, or free only some items.
 
-**Solution**: `model =` for the common designs; `index =` for any equality restriction (same number = same parameter); TAM's `gammaslope.fixed` to fix a step:
+**Solution**: `design =` for the common models, a formula for the step discriminations read as an item × step layout on the log scale, $\log a_{il} = \mu + \alpha_i + \gamma_l + (\alpha\gamma)_{il}$:
+
+| `design =` | Model | $a_{il}$ | Shape of the steps |
+|---|---|---|---|
+| `~ item * step` (default) | saturated TPPCM | $a_{il}$ | item-specific (interaction) |
+| `~ item + step` | Rank-1 (A5; not linear, `xxirt_tppcm()`) | $\alpha_i\gamma_l$ | same shape, item-specific level |
+| `~ item` | GPCM | $\alpha_i$ | flat |
+| `~ step` | step model | $\gamma_l$ | same shape and level for all items |
+| `~ 1` | PCM | $a$ | flat, the same for all items |
+
+`index =` gives any other equality restriction (same number = same parameter) and takes precedence over `design`; TAM's `gammaslope.fixed` fixes a step:
 
 ```{r a3}
-fit_gpcm <- tam.mml.3pl(sc, E = tppcm(sc, "gpcm"), est.variance = FALSE, verbose = FALSE)
-fit_step <- tam.mml.3pl(sc, E = tppcm(sc, "step"), est.variance = FALSE, verbose = FALSE)
-fit_pcm  <- tam.mml.3pl(sc, E = tppcm(sc, "pcm"),  est.variance = FALSE, verbose = FALSE)
-dimnames(tppcm(sc, "step"))[[4]]                  # parameter names
+fit_gpcm <- tam.mml.3pl(sc, E = tppcm(sc, design = ~ item), est.variance = FALSE, verbose = FALSE)
+fit_step <- tam.mml.3pl(sc, E = tppcm(sc, design = ~ step), est.variance = FALSE, verbose = FALSE)
+fit_pcm  <- tam.mml.3pl(sc, E = tppcm(sc, design = ~ 1),  est.variance = FALSE, verbose = FALSE)
+dimnames(tppcm(sc, design = ~ step))[[4]]                  # parameter names
 idx <- rbind(1:3, 4:6, rep(7, 3), rep(8, 3))      # only sc1 and sc2 saturated
 fit_mix <- tam.mml.3pl(sc, E = tppcm(sc, index = idx), est.variance = FALSE, verbose = FALSE)
 fit_fix <- tam.mml.3pl(sc, E = tppcm(sc), est.variance = FALSE, verbose = FALSE,
                        gammaslope.fixed = cbind(2, 3))                  # sc1 step 2 fixed at 3
 ```
 
-**Discussion**: the numbers in `index` need not be consecutive; they are renumbered.
+**Discussion**: the numbers in `index` need not be consecutive; they are renumbered. `~ item:step` and `~ item + step + item:step` are the same as `~ item * step`. The interaction term means that items differ in the shape of their step discriminations (the ratios $a_{il}/a_{il'}$); `~ step` is the rating-scale idea of TAM's `formulaA = ~ item + step` applied to the discriminations. Rank-1 is multiplicative, so `tppcm()` refuses it:
+
+```{r a3-broken, error = TRUE}
+tppcm(sc, design = ~ item + step)
+```
 
 **See also**: B1 (report), C3 (model comparison).
 
@@ -120,18 +134,18 @@ fit_timss <- tam.mml.3pl(timss, E = tppcm(timss), est.variance = FALSE, verbose 
 irt_pars(fit_timss, se = FALSE)
 ```
 
-**Discussion**: steps that do not exist are blank in the report and `NA` in `index`. The product form (`xxirt_tppcm(, "rank1")`) and `score_test(against = "rank1")` need the same number of categories in every item.
+**Discussion**: steps that do not exist are blank in the report and `NA` in `index`. Rank-1 (`xxirt_tppcm(dat, design = ~ item + step)`) and `score_test(against = ~ item + step)` need the same number of categories in every item.
 
 **See also**: A1, `?tppcm`.
 
-## A5. The product form and the lower bound of the discriminations
+## A5. Rank-1 (product form) and the lower bound of the discriminations
 
 **Problem**: estimate $a_{il} = \alpha_i \gamma_l$, or keep discriminations from going negative. TAM cannot do either.
 
 **Solution**: `xxirt_tppcm()` fits with sirt:
 
 ```{r a5}
-fit_r1 <- xxirt_tppcm(as.matrix(sc), "rank1")
+fit_r1 <- xxirt_tppcm(as.matrix(sc), design = ~ item + step)
 irt_pars(fit_r1, restricted = TRUE)              # alpha_i and gamma_l
 dim(xxirt_vcov(fit_r1))                          # covariance matrix of the xxirt fit
 ```
@@ -173,7 +187,7 @@ For a paper, the pieces are plain data frames:
 
 ```{r b1-kable}
 p <- irt_pars(fit_sat, fit = FALSE)
-knitr::kable(cbind(p$items[, 1:3], p$SE[, 1:3]), digits = 2,
+knitr::kable(cbind(p$items[, 1:3], p$se[, 1:3]), digits = 2,
              col.names = c(paste0("a", 1:3), paste0("SE(a", 1:3, ")")))
 ```
 
@@ -269,25 +283,25 @@ wald_test(fit_gpcm)          # in a GPCM the steps are equal by construction
 
 ```{r c2}
 score_test(fit_gpcm)                    # GPCM against the saturated TPPCM
-score_test(fit_gpcm, "rank1")           # GPCM against the product form
+score_test(fit_gpcm, against = ~ item + step)           # GPCM against the product form
 item_test(fit_gpcm)                     # which items
 head(mi(fit_gpcm), 5)                   # which steps (modification indices and EPCs)
 ```
 
 ```{r c2-broken, error = TRUE}
 score_test(fit_sat)                     # already saturated
-score_test(fit_timss, "rank1")          # TIMSS items have 1 or 2 steps
+score_test(fit_timss, against = ~ item + step)          # TIMSS items have 1 or 2 steps
 ```
 
-**Discussion**: a score test uses only the estimates of the restricted model. `against` can be `"tppcm"`, `"rank1"`, `"gpcm"` or `"step"`, or `D =` gives arbitrary directions. The sign of an EPC says whether the step should be steeper (positive) or flatter (negative) than the common GPCM slope; here every third step is flatter, which the product form captures with one $\gamma_3$. The model label `GPCM design (tam.mml.3pl)` means a GPCM fitted through `tppcm(dat, "gpcm")`; a fit from `tam.mml.2pl(irtmodel = "GPCM")` is labeled `GPCM` and gives the same results.
+**Discussion**: a score test uses only the estimates of the restricted model. `against` is a design formula of a larger model (`~ item * step`, the default; `~ item + step`; `~ item`; `~ step`), or `D =` gives arbitrary directions. Against `~ item + step` the GPCM is tested for a step effect, Rank-1 against `~ item * step` for an item × step interaction. The sign of an EPC says whether the step should be steeper (positive) or flatter (negative) than the common GPCM slope; here every third step is flatter, which Rank-1 captures with one $\gamma_3$. The model label `GPCM, design ~ item (tam.mml.3pl)` means a GPCM fitted through `tppcm(dat, design = ~ item)`; a fit from `tam.mml.2pl(irtmodel = "GPCM")` is labeled `GPCM, design ~ item` and gives the same results; `get_parts(fit, "formula")` returns the design.
 
 **See also**: C1, C3, `vignette("tppcm-tutorial")` Section 4.
 
 ## C3. Likelihood-ratio tests of nested models
 
-**Problem**: compare PCM, GPCM, step model, product form and the saturated model.
+**Problem**: compare PCM, GPCM, step model, Rank-1 and the saturated model.
 
-**Solution**: fit all models in the slope parameterization (the PCM with `tppcm(dat, "pcm")`) and hand them to TAM:
+**Solution**: fit all models in the slope parameterization (the PCM with `tppcm(dat, design = ~ 1)`) and hand them to TAM:
 
 ```{r c3}
 lr <- IRT.compareModels(fit_pcm, fit_gpcm, fit_step, fit_sat)$LRtest
@@ -308,7 +322,7 @@ suppressWarnings(IRT.compareModels(fit_gpcm, fit_r1, fit_sat))$LRtest
 
 **Discussion**:
 
-- `IRT.compareModels()` compares all pairs and does not check nesting. The nesting is: PCM ⊂ GPCM, PCM ⊂ step model ⊂ product form ⊂ saturated model; GPCM ⊂ product form; GPCM and step model do not contain each other.
+- `IRT.compareModels()` compares all pairs and does not check nesting. The nesting is: `~ 1` ⊂ `~ item`, `~ 1` ⊂ `~ step` ⊂ `~ item + step` ⊂ `~ item * step`; `~ item` ⊂ `~ item + step`; `~ item` and `~ step` do not contain each other.
 - Do not compare TAM's own PCM from `tam.mml()` (variance estimated) with the slope-parameterized models by LR: the two are nested mathematically, but their numerical integration errors differ at TAM's default 21 nodes; the LR can even be negative.
 - With mixed TAM and xxirt objects, look only at `LRtest`; TAM warns when computing the GHP column for the xxirt object, and that column is wrong.
 
@@ -337,27 +351,27 @@ m2(fit_w)                    # not available with weights
 
 **See also**: `?m2`, B1.
 
-# D. Differential item functioning
+# D. Differential item and step functioning
 
 ## D1. Known groups: which step has DIF
 
 **Problem**: do boys and girls differ in the discrimination or difficulty of some step?
 
-**Solution**: fit the saturated model once, then `dif_test()`:
+**Solution**: when the covariate is unrelated to ability, fit the saturated model once to the whole sample, then `dif_test()`:
 
 ```{r d1}
 cov <- data.timssAusTwn.scored[, c("IDCNTRY", "ITSEX")]
 cov$country <- factor(cov$IDCNTRY, labels = c("AUS", "TWN"))
 cov$sex     <- factor(cov$ITSEX,   labels = c("girl", "boy"))
 sp_timss <- get_parts(fit_timss)                 # reused below
-d_disc <- dif_test(sp_timss, cov$sex)            # every step discrimination
+d_disc <- dif_test(sp_timss, cov$sex, parm = "disc")   # every step discrimination
 d_disc[d_disc$p < 0.10, ]
 dif_test(sp_timss, cov$sex, parm = "diff", by = "item")
 ```
 
-**Discussion**: every unit is residualized on all other parameters first (efficient score), so difficulty DIF is not mistaken for discrimination DIF and vice versa. Nothing survives the Holm correction here. With a GPCM fit, discrimination exists only at the item level, and step DIF is either invisible or misreported as difficulty DIF.
+**Discussion**: every unit is residualized on all other parameters first (efficient score), so difficulty DIF is not mistaken for discrimination DIF and vice versa. Nothing survives the Holm correction here. With a GPCM fit, discrimination exists only at the item level, and step DIF is either invisible or misreported as difficulty DIF. The message about impact is a reminder that a single-group fit is valid only if the groups do not differ in ability; otherwise fit the groups (D2) and use the step-level workflow of D5.
 
-**See also**: `?dif_test`, D2, D3.
+**See also**: `?dif_test`, D2, D3, D5.
 
 ## D2. A covariate related to ability: impact is not DIF
 
@@ -370,17 +384,16 @@ dif_test(sp_timss, cov$country, parm = "diff", by = "item")
 **Solution**: the single-group model assumes one $N(0,1)$ distribution for Australian and Taiwanese students alike, and the Taiwanese mean is about 1.5 SD higher. What the test finds is this impact, not DIF. Fit the multigroup model so that the group distributions are part of the model, then test:
 
 ```{r d2-mg}
-fit_mg <- tam.mml.3pl(timss, E = tppcm(timss), group = cov$IDCNTRY,
+fit_mg <- tam.mml.3pl(timss, E = tppcm(timss), group = cov$country,
                       est.variance = FALSE, verbose = FALSE)
 irt_pars(fit_mg, fit = FALSE)$group
 sp_mg <- get_parts(fit_mg)
-dif_test(sp_mg, cov$country, parm = "diff", by = "item")
-dif_test(sp_mg, cov$country, parm = "disc", by = "item")
+dif_test(sp_mg, cov$country, by = "item")             # all parameters of an item jointly
 ```
 
-**Discussion**: three items keep difficulty DIF and three show discrimination DIF between the countries. The same applies to any covariate correlated with ability, including continuous ones; for those use TAM's latent regression (`Y =`) in the same way. DIF trees have the same issue: a split on such a covariate reflects the ability difference first (D4).
+**Discussion**: with the latent means and variances of the countries in the model, the item-level tests are about items, not about ability; seven items still differ between the countries (`p_adj`, Holm). D5 locates the steps and tells CBD from location differences. The same applies to any covariate correlated with ability, including continuous ones; for those use TAM's latent regression (`Y =`) in the same way. DIF trees have the same issue: a split on such a covariate reflects the ability difference first (D4).
 
-**See also**: D1, E3.
+**See also**: D1, D5, E3.
 
 ## D3. Numeric and ordered covariates
 
@@ -391,7 +404,7 @@ dif_test(sp_mg, cov$country, parm = "disc", by = "item")
 ```{r d3}
 data("VerbalAggression", package = "psychotools")
 va <- VerbalAggression
-fit_va <- tam.mml.3pl(va$resp, E = tppcm(va$resp, "gpcm"), est.variance = FALSE, verbose = FALSE)
+fit_va <- tam.mml.3pl(va$resp, E = tppcm(va$resp, design = ~ item), est.variance = FALSE, verbose = FALSE)
 sp_va <- get_parts(fit_va)
 d_anger <- dif_test(sp_va, va$anger, parm = "diff", by = "item")        # numeric: Cramer-von Mises
 head(d_anger[order(d_anger$p), ], 5)
@@ -416,20 +429,52 @@ dif_test(sp_va, va$anger[-1])                                            # wrong
 **Solution**: `tppcmtree()`, looking at difficulties and discriminations separately. With the verbal aggression data:
 
 ```{r d4}
-tr_diff <- tppcmtree(resp ~ gender + anger, data = va, model = "pcm", parm = "diff", minsize = 50)
+tr_diff <- tppcmtree(resp ~ gender + anger, data = va, design = ~ 1, parm = "diff", minsize = 50)
 partykit::width(tr_diff)
 partykit::character_split(tr_diff$node$split, tr_diff$data)$name
-tr_disc <- tppcmtree(resp ~ gender + anger, data = va, model = "gpcm", parm = "disc", minsize = 50)
+tr_disc <- tppcmtree(resp ~ gender + anger, data = va, design = ~ item, parm = "disc", minsize = 50)
 partykit::width(tr_disc)
 ```
 
 ```{r d4-broken, error = TRUE}
-tppcmtree(resp ~ gender + anger, data = va, model = "gpcm", parm = "diff", minsize = 50)
+tppcmtree(resp ~ gender + anger, data = va, design = ~ item, parm = "diff", minsize = 50)
 ```
 
-**Discussion**: the difficulty tree splits on gender; the discrimination tree does not split. The failed call shows the limiting factor: in some node a category of an item is no longer observed, and the node model cannot be estimated. A larger `minsize` or a less demanding node model (`"pcm"`) helps. `coef(tree)` gives the parameters per node.
+**Discussion**: the difficulty tree splits on gender; the discrimination tree does not split. The failed call shows the limiting factor: in some node a category of an item is no longer observed, and the node model cannot be estimated. A larger `minsize` or a less demanding node model (`design = ~ 1`) helps. `coef(tree)` gives the parameters per node.
 
 **See also**: `?tppcmtree`, D1, D2.
+
+## D5. Which step functions differently between known groups (DSF)
+
+**Problem**: the groups are known (here the countries of D2). Which category boundaries differ, and is it their discrimination (CBD) or their location (IBD/CBL)?
+
+**Solution**: on the multigroup fit, screen every step with the joint 2-df score test, decompose flagged steps with likelihood ratio tests, and compare configural, metric and scalar models:
+
+```{r d5}
+st <- dif_test(fit_mg, cov$country, by = "step")       # 1. screen (Holm-adjusted p_adj)
+flagged <- st$unit[st$p_adj < 0.05]
+flagged
+dsf(fit_mg, items = "M032692", verbose = FALSE)        # 2. decompose one item (refits)
+d_part <- dsf_design(timss, cov$country, group.partial = list(ibd = "M032692"))
+d_part                                                 # 3. a partial-invariance model
+m_part <- tam.mml.3pl(d_part$resp, A = d_part$A, E = d_part$E, group = cov$country,
+                      variance.fixed = d_part$variance.fixed,
+                      beta.fixed = d_part$beta.fixed, verbose = FALSE)
+IRT.compareModels(fit_mg, m_part)$LRtest
+```
+
+```{r d5-broken, error = TRUE}
+dif_test(fit_mg, cov$country, parm = "disc", by = "step")   # a step is tested jointly
+dsf(fit_timss)                                              # needs a multigroup fit
+```
+
+**Discussion**:
+
+- `dif_test(by = "step")` tests the CBD and location of every step jointly (Glas, 1998; `info = "robust"`, the generalized score test of Boos, 1992, is the default). Its null hypothesis does not depend on the parameterization. Do not screen with the 1-df `disc` rows of `by = "param"`: they hold the location of the step equal across groups, so location DSF leaks into them (`vignette("tppcm-tutorial")`, Section 6).
+- `dsf()` releases one parameter at a time against the scalar baseline (`group.equal = c("cbd", "ibd")`, lavaan's loadings and intercepts) with all other steps as anchors. The CBD row frees the location of the step as well, so it does not depend on the origin of the scale. Both steps of `M032692` differ mainly in their IBD (LR 81 and 130); their CBDs differ less (LR 5.5 and 6.8). Each test refits the model, so pass only the flagged steps: `dsf(fit_mg, items = flagged)`.
+- `dsf_design()` gives the configural (`group.equal = NULL`), metric (`"cbd"`) and scalar models and partial models (`group.partial`), with the identification of the latent means and variances; fit them with `tam.mml.3pl()` as above. The scalar model has the log-likelihood of `fit_mg`.
+
+**See also**: `?dif_test`, `?dsf`, `?dsf_design`, D2, `vignette("tppcm-tutorial")` Section 6.
 
 # E. Simulation, unsupported models, weights and groups
 
@@ -492,9 +537,9 @@ irt_pars(sc)                                                                    
 **Solution**:
 
 ```{r e3}
-irt_pars(fit_w, fit = FALSE)$SE[1:2, ]                                            # weights enter the SEs
+irt_pars(fit_w, fit = FALSE)$se[1:2, ]                                            # weights enter the SEs
 fit_w1 <- tam.mml.2pl(sc, irtmodel = "GPCM", pweights = w / mean(w), verbose = FALSE)
-irt_pars(fit_w1, fit = FALSE)$SE[1:2, ]                                           # after normalizing
+irt_pars(fit_w1, fit = FALSE)$se[1:2, ]                                           # after normalizing
 irt_pars(fit_mg, fit = FALSE)$group                                               # group means and variances
 fit_lr <- tam.mml.3pl(sc, E = tppcm(sc), Y = data.Students[, c("female", "urban")],
                       est.variance = FALSE, verbose = FALSE)
@@ -506,7 +551,7 @@ p_lr <- irt_pars(fit_lr, fit = FALSE)                                           
 | Situation | Available | Not available |
 |---|---|---|
 | weights | parameters, SEs, Wald, score tests, MI | `m2()`, `dif_test()` |
-| multiple groups | parameters, SEs (the group means and variances are part of the parameter vector), all tests, `dif_test()` | `m2()` |
+| multiple groups | parameters, SEs (the group means and variances are part of the parameter vector), all tests, `dif_test()`, `dsf()`, `dsf_design()` | `m2()` |
 | latent regression | parameters, SEs (regression coefficients fixed), tests, `dif_test()` | `m2()` |
 
-**See also**: `?get_parts`, D2.
+**See also**: `?get_parts`, D2, D5.

@@ -17,17 +17,17 @@ test_that("model detection", {
   dat <- make_data(300)
   expect_equal(get_parts(TAM::tam.mml(dat, verbose = FALSE))$model, "pcm")
   expect_equal(get_parts(TAM::tam.mml.2pl(dat, irtmodel = "GPCM", verbose = FALSE))$model, "gpcm")
-  expect_equal(get_parts(xxirt_tppcm(dat, "rank1"))$model, "rank1")
-  expect_equal(get_parts(xxirt_tppcm(dat, "gpcm"))$model, "gpcm")
+  expect_equal(get_parts(xxirt_tppcm(dat, design = ~ item + step))$model, "rank1")
+  expect_equal(get_parts(xxirt_tppcm(dat, design = ~ item))$model, "gpcm")
 })
 
 test_that("standard errors agree with the numerical Hessian of xxirt", {
   dat <- make_data()
-  x_sat <- xxirt_tppcm(dat, "tppcm")
+  x_sat <- xxirt_tppcm(dat, design = ~ item * step)
   v <- sqrt(diag(xxirt_vcov(x_sat)))
   expect_equal(unname(irt_pars(x_sat, long = TRUE)$se[irt_pars(x_sat, long = TRUE)$par == "disc"]), unname(v[grep("_a", names(v))]), tolerance = 1e-3)
 
-  x_r1 <- xxirt_tppcm(dat, "rank1")
+  x_r1 <- xxirt_tppcm(dat, design = ~ item + step)
   tp <- get_parts(x_r1)
   cx <- coef(x_r1); vx <- sqrt(diag(xxirt_vcov(x_r1)))
   ix <- c(grep("alpha", names(cx)), match(c("I1_g2", "I1_g3"), names(cx)))
@@ -37,7 +37,7 @@ test_that("standard errors agree with the numerical Hessian of xxirt", {
 
 test_that("fixed steps in tam.mml.3pl are detected", {
   dat <- make_data()
-  fit <- TAM::tam.mml.3pl(dat, E = step_design(dat), est.variance = FALSE, verbose = FALSE,
+  fit <- TAM::tam.mml.3pl(dat, E = tppcm(dat), est.variance = FALSE, verbose = FALSE,
                           gammaslope.fixed = cbind(2, 1.5))
   tp <- get_parts(fit)
   expect_equal(tp$fixed, 2)

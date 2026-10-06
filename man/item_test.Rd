@@ -4,15 +4,19 @@
 \alias{item_test}
 \title{Item-level score tests}
 \usage{
-item_test(x, info = c("louis", "opg"))
+item_test(x, info = c("louis", "opg"), adjust = "holm")
 }
 \arguments{
 \item{x}{A fitted model (see \code{\link[=get_parts]{get_parts()}}) or a \code{get_parts} object.}
 
 \item{info}{\code{"louis"} (observed information) or \code{"opg"}.}
+
+\item{adjust}{Multiple-testing adjustment of \code{p_adj} over all rows, a method
+of \code{\link[stats:p.adjust]{stats::p.adjust()}} (\code{"none"} for none).}
 }
 \value{
-Data frame (class \code{tppcm_table}) with \code{item}, \code{statistic}, \code{df}, \code{p}.
+Data frame (class \code{tppcm_table}) with \code{item}, \code{statistic}, \code{df},
+\code{p}, \code{p_adj}.
 }
 \description{
 For each item, the score test for freeing all of its step discriminations

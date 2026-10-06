@@ -4,21 +4,19 @@
 \alias{score_test}
 \title{Score test against a less restricted TPPCM}
 \usage{
-score_test(
-  x,
-  against = c("tppcm", "rank1", "gpcm", "step"),
-  D = NULL,
-  info = c("louis", "opg")
-)
+score_test(x, against = ~item * step, D = NULL, info = c("louis", "opg"))
 }
 \arguments{
 \item{x}{A fitted model (see \code{\link[=get_parts]{get_parts()}}) or a \code{get_parts} object.}
 
-\item{against}{Alternative model; must contain the model of \code{x}.
-\code{"tppcm"} (saturated), \code{"rank1"} (product form \eqn{\alpha_i\gamma_l}),
-\code{"gpcm"} (\eqn{\alpha_i}) or \code{"step"} (\eqn{\gamma_l}, shared by items).
-The models form a lattice: pcm is contained in gpcm and step, both are
-contained in rank1, and rank1 in tppcm.}
+\item{against}{Alternative model as a design formula (see \code{\link[=tppcm]{tppcm()}}); must
+contain the model of \code{x}: \code{~ item * step} (default, saturated),
+\code{~ item + step} (Rank-1, \eqn{\alpha_i\gamma_l}), \code{~ item} (GPCM,
+\eqn{\alpha_i}) or \code{~ step} (\eqn{\gamma_l}, shared by items). The
+models form a hierarchy: \code{~ 1} is contained in \code{~ item} and \code{~ step},
+both are contained in \code{~ item + step}, and that in \code{~ item * step}. Thus
+the GPCM against \code{~ item + step} tests for a step effect, Rank-1 against
+\code{~ item * step} for an item x step interaction.}
 
 \item{D}{Optional matrix of extra directions in the saturated space
 (rows as in \code{x$parindex}); overrides \code{against}.}
@@ -43,7 +41,7 @@ dat <- sim_tppcm(800, disc = outer(c(0.8, 1, 1.2, 1.5), c(1, 1.5, 0.7)),
                  diff = matrix(c(-1, 0, 1), 4, 3, byrow = TRUE))
 fit <- tam.mml.2pl(dat, irtmodel = "GPCM", verbose = FALSE)
 score_test(fit)                   # GPCM vs saturated TPPCM
-score_test(fit, against = "rank1")   # GPCM vs product form
+score_test(fit, against = ~ item + step)   # GPCM vs Rank-1: step effect?
 item_test(fit)
 mi(fit)
 }

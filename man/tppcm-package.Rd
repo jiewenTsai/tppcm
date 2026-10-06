@@ -3,52 +3,128 @@
 \docType{package}
 \name{tppcm-package}
 \alias{tppcm-package}
-\title{tppcm: Step discriminations for the two-parameter partial credit model}
+\title{tppcm: Boundary-level diagnostics for the two-parameter partial credit model}
 \description{
 The two-parameter partial credit model (TPPCM; Yu, 1991) gives every step
 \eqn{l} of item \eqn{i} of Masters' partial credit model its own
 discrimination \eqn{a_{il}}. With categories
 \eqn{k = 0, \dots, K-1},
-\deqn{P(X_i = k \mid \theta) \propto \exp\Big(\sum_{l \le k} (a_{il}\theta - d_{il})\Big).}
+\deqn{P(X_i = k \mid \theta) \propto \exp\Big(\sum_{l \le k} a_{il}(\theta - b_{il})\Big).}
 The saturated TPPCM is a reparameterization of the nominal response model,
-so the package does not ship an estimator of its own. It builds on:
+so the package does not ship an estimator of its own: it provides
+post-estimation, boundary-level diagnostics for fits from TAM and sirt.
 }
 \details{
+Estimation is left to
 \itemize{
-\item \strong{TAM} for estimation: \code{\link[TAM:tam.mml.3pl]{TAM::tam.mml.3pl()}} with the step design from
-\code{\link[=step_design]{step_design()}} (the slope parameters are then the step discriminations),
-and \code{\link[TAM:tam.mml]{TAM::tam.mml.2pl()}} / \code{\link[TAM:tam.mml]{TAM::tam.mml()}} for the GPCM and the PCM.
-\item \strong{sirt} for what TAM cannot express exactly: the product form
-\eqn{a_{il} = \alpha_i \gamma_l} and the bound \eqn{a_{il} \ge 0}
-(\code{\link[=xxirt_tppcm]{xxirt_tppcm()}}).
+\item \strong{TAM}: \code{\link[TAM:tam.mml.3pl]{TAM::tam.mml.3pl()}} with the step design from \code{\link[=tppcm]{tppcm()}} (the
+slope parameters are then the step discriminations), and
+\code{\link[TAM:tam.mml]{TAM::tam.mml.2pl()}} / \code{\link[TAM:tam.mml]{TAM::tam.mml()}} for the GPCM and the PCM;
+\item \strong{sirt}: the product form \eqn{a_{il} = \alpha_i \gamma_l} and the
+bound \eqn{a_{il} \ge 0}, which TAM cannot express (\code{\link[=xxirt_tppcm]{xxirt_tppcm()}}).
 }
 
-The functions below take the fitted TAM (or xxirt) object directly; the
-responses are read from the fit. The underlying mathematical objects are
-available with \code{\link[=get_parts]{get_parts()}}.
-\itemize{
-\item \code{\link[=irt_pars]{irt_pars()}} with \code{long = TRUE}: step discriminations and difficulties with standard
-errors from the full observed information (TAM's \code{se.gammaslope} ignores
-the covariance with the thresholds and is too small);
-\item \code{\link[=wald_test]{wald_test()}}: per-item test of equal step discriminations;
-\item \code{\link[=irt_pars]{irt_pars()}}: a compact, mirt-style table of item and group parameters
-with standard errors and a fit header;
-\item \code{\link[=m2]{m2()}}: limited-information fit (M2, RMSEA2, SRMSR, CFI, TLI) for any
-step design;
-\item \code{\link[=score_test]{score_test()}}, \code{\link[=mi]{mi()}}, \code{\link[=item_test]{item_test()}}: score tests, modification indices
-and expected parameter changes, computed from the restricted model only;
-\item \code{\link[=dif_test]{dif_test()}}, \code{\link[=tppcmtree]{tppcmtree()}}: score-based DIF tests and DIF trees for
-step discriminations and step difficulties separately.
-\item \code{\link[=step_info]{step_info()}}: step, item and test information.
+The functions take the fitted TAM (or xxirt) object directly; the
+responses are read from the fit.
 }
+\section{Parameter names}{
+
+Every step (category boundary) has a discrimination and a location. The
+package uses two sets of names, one for reporting single-group fits and
+one, from the category boundary literature (Preston et al., 2011), for
+differential step functioning (DSF) across groups:\tabular{lllll}{
+   Quantity \tab Kernel \tab \code{\link[=irt_pars]{irt_pars()}}, \code{\link[=dif_test]{dif_test()}} (\code{param = "irt"}) \tab \code{param = "si"} / \code{IRTpars = FALSE} \tab \code{\link[=dsf]{dsf()}}, \code{\link[=dsf_design]{dsf_design()}} \cr
+   step discrimination, CBD (category boundary discrimination) \tab \eqn{a_{il}} \tab \code{disc} \tab \code{slope} \tab \code{"cbd"} \cr
+   step difficulty, CBL (category boundary location) \tab \eqn{b_{il}} \tab \code{diff} \tab  \tab \code{"cbl"} \cr
+   step intercept, IBD (intercept boundary difference) \tab \eqn{-a_{il} b_{il}} \tab  \tab \code{int} \tab \code{"ibd"} \cr
+}
+
+
+The step kernel is \code{disc * (theta - diff)} = \code{slope * theta + int}. The CBD
+equals the difference of adjacent category slopes of the nominal response
+model, and the IBD the difference of adjacent category intercepts. In
+multigroup comparisons the CBD plays the role of a factor loading and the
+IBD that of an intercept (lavaan's \code{group.equal = c("loadings", "intercepts")}); with equal CBDs, equal IBDs and equal CBLs are the same
+restriction.
+}
+
+\section{Submodels (an item x step design on the log scale)}{
+
+The submodels are written as formulas for the step discriminations of the
+items, read as a two-way item x step layout on the log scale,
+\eqn{\log a_{il} = \mu + \alpha_i + \gamma_l + (\alpha \gamma)_{il}}
+(argument \code{design} of \code{\link[=tppcm]{tppcm()}}, \code{\link[=xxirt_tppcm]{xxirt_tppcm()}}, \code{\link[=score_test]{score_test()}},
+\code{\link[=dsf_design]{dsf_design()}} and \code{\link[=tppcmtree]{tppcmtree()}}):\tabular{llll}{
+   \code{design} \tab Model \tab \eqn{a_{il}} \tab Shape of the steps \cr
+   \code{~ 1} \tab PCM (common slope) \tab \eqn{a} \tab flat, same level for all items \cr
+   \code{~ item} \tab GPCM \tab \eqn{\alpha_i} \tab flat, item-specific level \cr
+   \code{~ step} \tab step model \tab \eqn{\gamma_l} \tab same shape and level for all items \cr
+   \code{~ item + step} \tab Rank-1 (product form; \code{\link[=xxirt_tppcm]{xxirt_tppcm()}}) \tab \eqn{\alpha_i\gamma_l} \tab same shape, item-specific level \cr
+   \code{~ item * step} \tab saturated TPPCM (default) \tab \eqn{a_{il}} \tab item-specific shapes (item x step interaction) \cr
+}
+
+
+The models are nested from top to bottom, except that \code{~ item} and
+\code{~ step} do not contain each other. The score test of the GPCM against
+\code{~ item + step} asks whether there is a step effect, that of Rank-1
+against \code{~ item * step} whether there is an item x step interaction (items
+differ in the ratios \eqn{a_{il}/a_{il'}}). The log scale presumes
+\eqn{a_{il} > 0}, as in Yu (1991); TAM does not impose it. In the same
+language, TAM's and ConQuest's location formulas \code{~ item + step} (rating
+scale model) and \code{~ item + item:step} (partial credit model) describe the
+step locations; \code{design = ~ step} is the rating-scale idea applied to the
+discriminations.
+}
+
+\section{Functions}{
+
+\itemize{
+\item Design: \code{\link[=tppcm]{tppcm()}} (\code{design = ~ item * step} and its submodels) for \code{\link[TAM:tam.mml.3pl]{TAM::tam.mml.3pl()}};
+\code{\link[=xxirt_tppcm]{xxirt_tppcm()}} for the product form and bounds; \code{\link[=sim_tppcm]{sim_tppcm()}} for
+simulation.
+\item Parameters: \code{\link[=irt_pars]{irt_pars()}}, a compact table of item and group parameters
+with standard errors from the full observed information (TAM's
+\code{se.gammaslope} ignores the covariance with the thresholds) and a fit
+header; \code{long = TRUE} for a long table with confidence intervals.
+\item Fit and information: \code{\link[=m2]{m2()}} (M2, RMSEA2, SRMSR, CFI, TLI for any step
+design); \code{\link[=step_info]{step_info()}} (step, item and test information).
+\item Tests between models: \code{\link[=wald_test]{wald_test()}} (equal step discriminations within
+items); \code{\link[=score_test]{score_test()}}, \code{\link[=item_test]{item_test()}}, \code{\link[=mi]{mi()}} (score tests, modification
+indices and expected parameter changes, computed from the restricted
+model only).
+\item Differential step functioning: \code{\link[=dif_test]{dif_test()}} (score tests from one fit;
+\code{by = "step"} is the per-boundary screen on a multigroup fit); \code{\link[=dsf]{dsf()}}
+(likelihood ratio tests of single CBDs and IBDs); \code{\link[=dsf_design]{dsf_design()}}
+(configural, metric, scalar and partial multigroup models);
+\code{\link[=tppcmtree]{tppcmtree()}} (DIF trees for unknown groupings).
+\item Components: \code{\link[=get_parts]{get_parts()}} (scores, information, Jacobian, posterior, ...).
+}
+
+Tables of tests report \code{p} and an adjusted \code{p_adj} (argument \code{adjust},
+Holm by default); the header of the printed table says what was tested
+and how \code{p_adj} was adjusted.
 
 The vignettes \code{vignette("tppcm-tutorial")} and \code{vignette("tppcm-recipes")}
 (also in Traditional Chinese: \code{"tppcm-tutorial-zh"}, \code{"tppcm-recipes-zh"})
 show every function on data sets from TAM, CDM, mirt and psychotools.
 }
+
 \references{
+Preston, K., Reise, S., Cai, L., & Hays, R. D. (2011). Using
+the nominal response model to evaluate response category discrimination
+in the PROMIS emotional distress item pools. \emph{Educational and
+Psychological Measurement, 71}, 523-550.
+
 Yu, M.-N. (1991). \emph{A two-parameter partial credit model}
 (Doctoral dissertation). University of Illinois at Urbana-Champaign.
+}
+\seealso{
+Useful links:
+\itemize{
+  \item \url{https://github.com/jiewenTsai/tppcm}
+  \item Report bugs at \url{https://github.com/jiewenTsai/tppcm/issues}
+}
+
 }
 \author{
 \strong{Maintainer}: Jie-Wen Tsai \email{tsai.jiewen@gmail.com}

@@ -13,14 +13,14 @@
 #' @export
 sim_tppcm <- function(N, disc, diff, theta = stats::rnorm(N)) {
   a <- as.matrix(disc); b <- as.matrix(diff)
-  if (!identical(dim(a), dim(b))) stop("disc and diff must have the same dimensions (items x steps)")
-  if (any(is.na(a) != is.na(b))) stop("disc and diff must have NA in the same places")
-  if (length(theta) != N) stop("theta must have length N")
+  if (!identical(dim(a), dim(b))) stop("disc and diff must have the same dimensions (items x steps)", call. = FALSE)
+  if (any(is.na(a) != is.na(b))) stop("disc and diff must have NA in the same places", call. = FALSE)
+  if (length(theta) != N) stop("theta must have length N (", N, ")", call. = FALSE)
   I <- nrow(a)
   dat <- matrix(NA_integer_, N, I)
   for (i in 1:I) {
     ok <- unname(which(!is.na(a[i, ])))
-    if (!identical(ok, seq_along(ok))) stop("NA steps must come last (item ", i, ")")
+    if (!identical(ok, seq_along(ok))) stop("NA steps must come last (item ", i, ")", call. = FALSE)
     K <- length(ok) + 1
     P <- .tppcm_P(a[i, ok], a[i, ok] * b[i, ok], matrix(theta, ncol = 1))
     cum <- t(apply(P, 1, cumsum))[, -K, drop = FALSE]

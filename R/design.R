@@ -1,60 +1,152 @@
-#' Step design for estimating the TPPCM with TAM::tam.mml.3pl()
-#'
-#' `tppcm()` and `step_design()` are the same function.
+#' Step design for the TPPCM and its submodels
 #'
 #' Builds the slope design array `E` for [TAM::tam.mml.3pl()] so that the
-#' slope parameters (`gammaslope`) are the step discriminations \eqn{a_{il}}.
-#' The category slope of category \eqn{k} is \eqn{\sum_{l \le k} a_{il}}.
+#' slope parameters (`gammaslope`) are the step discriminations (CBDs)
+#' \eqn{a_{il}}, restricted as described by `design`. The category slope of
+#' category \eqn{k} is \eqn{\sum_{l \le k} a_{il}}.
 #'
-#' Linear restrictions on the step discriminations are written into `index`:
-#' steps with the same index share one parameter. To fix a step, use the
-#' `gammaslope.fixed` argument of [TAM::tam.mml.3pl()] with its index.
-#' Do not use `gammaslope.constr.V` for equality constraints (it does not
-#' reach the maximum likelihood estimate) and do not use
-#' `userfct.gammaslope` to impose \eqn{a_{il} \ge 0} (truncation is not the
-#' constrained estimate); use [xxirt_tppcm()] for bounds.
+#' @section The design formula (an item x step layout on the log scale):
+#' `design` describes the step discriminations of the items as a two-way
+#' item x step layout, read on the log scale like a two-way ANOVA:
+#' \deqn{\log a_{il} = \mu + \alpha_i + \gamma_l + (\alpha \gamma)_{il}.}
+#'
+#' | `design` | Model | \eqn{a_{il}} | Fitted with |
+#' |---|---|---|---|
+#' | `~ 1` | PCM (common slope) | \eqn{a} | `tam.mml.3pl(E = tppcm(dat, design = ~ 1))` |
+#' | `~ item` | GPCM | \eqn{\alpha_i} | `tppcm(dat, design = ~ item)` |
+#' | `~ step` | step model | \eqn{\gamma_l}, common to all items | `tppcm(dat, design = ~ step)` |
+#' | `~ item + step` | Rank-1 (product form) | \eqn{\alpha_i \gamma_l} | [xxirt_tppcm()] (not linear) |
+#' | `~ item * step` | saturated TPPCM (default) | \eqn{a_{il}} | `tppcm(dat)` |
+#'
+#' `~ item:step` and `~ item + step + item:step` are the same model as
+#' `~ item * step`. The models form a hierarchy: `~ 1` is contained in
+#' `~ item` and `~ step`, both are contained in `~ item + step`, which is
+#' contained in `~ item * step`. Read as main effects and an interaction:
+#'
+#' * the item x step interaction means that items differ in the *shape* of
+#'   their step discriminations: the ratios \eqn{a_{il} / a_{il'}} differ
+#'   between items (saturated TPPCM);
+#' * Rank-1 (main effects only): every item has the same shape
+#'   \eqn{\gamma_l}, scaled to its own level \eqn{\alpha_i};
+#' * GPCM (`~ item`): the shape is flat, every step of an item has the
+#'   item's discrimination;
+#' * `~ step`: the same shape and the same level for all items.
+#'
+#' Accordingly the score test of the GPCM against Rank-1
+#' (`score_test(gpcm_fit, against = ~ item + step)`) asks whether there is a
+#' step effect, and the test of Rank-1 against the saturated model
+#' (`score_test(rank1_fit)`) whether there is an item x step interaction.
+#' Rank-1 is multiplicative, so it cannot be written as a linear design for
+#' TAM; `tppcm()` stops and points to [xxirt_tppcm()]. For the four linear
+#' models the log scale does not matter (the same equality restrictions on
+#' \eqn{a_{il}}), and `tppcm()` returns the design array. The log scale
+#' presumes \eqn{a_{il} > 0}: Yu (1991) restricted the step discriminations
+#' to be positive, TAM does not impose it ([xxirt_tppcm()] does, with
+#' `lower0 = TRUE`).
+#'
+#' The same item x step language describes the locations in TAM's and
+#' ConQuest's facet formulas: `formulaA = ~ item + step` is the rating scale
+#' model (step parameters common to all items) and `~ item + item:step` the
+#' partial credit model. `design = ~ step` is the rating-scale idea applied to
+#' the discriminations.
+#'
+#' @section Custom restrictions:
+#' Any other linear restriction on the step discriminations is written into
+#' `index`: steps with the same index share one parameter. `index` takes
+#' precedence over `design`. To fix a step, use the `gammaslope.fixed`
+#' argument of [TAM::tam.mml.3pl()] with its index. Do not use
+#' `gammaslope.constr.V` for equality constraints (it does not reach the
+#' maximum likelihood estimate) and do not use `userfct.gammaslope` to impose
+#' \eqn{a_{il} \ge 0} (truncation is not the constrained estimate); use
+#' [xxirt_tppcm()] for bounds.
 #'
 #' @param dat Data frame or matrix of item responses coded `0, 1, ..., K_i - 1`.
 #'   Items may have different numbers of categories; every category from 0
 #'   to the item's maximum must be observed.
-#' @param model Shortcut for common designs; ignored when `index` is given.
-#'   * `"tppcm"`: every step its own discrimination (saturated TPPCM).
-#'   * `"gpcm"`: one discrimination per item, \eqn{a_{il} = \alpha_i}.
-#'   * `"step"`: one discrimination per step, shared by all items,
-#'     \eqn{a_{il} = \gamma_l} (columns of `index` equal).
-#'   * `"pcm"`: one common discrimination, \eqn{a_{il} = a}. With the latent
-#'     variance fixed at 1 this is the PCM with free variance
-#'     (same log-likelihood as [TAM::tam.mml()]).
+#' @param design One-sided formula in the terms `1`, `item`, `step` and
+#'   `item:step` describing the step discriminations (see the section
+#'   above): `~ 1`, `~ item`, `~ step` or `~ item * step` (default). Ignored
+#'   when `index` is given.
 #' @param index Optional integer matrix (items x steps, steps up to the
 #'   largest number of steps) of parameter indices `1, ..., H`. Entries for
 #'   steps an item does not have are ignored (use `NA`). Indices are renumbered
-#'   to 1, ..., H in order.
+#'   to 1, ..., H in order. Overrides `design`.
 #' @param K Number of categories per item (one number for all items, or one
 #'   per item). Defaults to the observed maximum + 1 of each item; give it
 #'   when a subsample may lack the highest categories (e.g. in tree nodes).
-#' @return An array of dimension items x categories x 1 x H with attribute
-#'   `"index"`.
+#' @return An array of dimension items x categories x 1 x H with attributes
+#'   `"index"` (items x steps parameter numbers) and `"design"` (the design
+#'   formula, `NULL` for a custom `index`).
 #' @seealso [irt_pars()] for the estimates with correct standard errors;
-#'   [tppcm-package] for an overview and `vignette("tppcm-tutorial")`.
+#'   [xxirt_tppcm()] for Rank-1; [tppcm-package] for an overview and
+#'   `vignette("tppcm-tutorial")`.
+#' @references Yu, M.-N. (1991). *A two-parameter partial credit model*
+#'   (Doctoral dissertation). University of Illinois at Urbana-Champaign.
 #' @examples
 #' \donttest{
 #' set.seed(1)
 #' dat <- sim_tppcm(500, disc = matrix(c(1, 1.5, 0.7), 4, 3, byrow = TRUE),
 #'                       diff = matrix(c(-1, 0, 1), 4, 3, byrow = TRUE))
-#' # saturated TPPCM
-#' mod <- TAM::tam.mml.3pl(dat, E = step_design(dat), est.variance = FALSE,
-#'                         verbose = FALSE)
-#' # same thing, other name
-#' mod <- TAM::tam.mml.3pl(dat, E = tppcm(dat), est.variance = FALSE, verbose = FALSE)
+#' fit <- function(E) TAM::tam.mml.3pl(dat, E = E, est.variance = FALSE, verbose = FALSE)
+#' m_sat  <- fit(tppcm(dat))                       # saturated: ~ item * step
+#' m_gpcm <- fit(tppcm(dat, design = ~ item))      # GPCM
+#' m_step <- fit(tppcm(dat, design = ~ step))      # step model
+#' m_pcm  <- fit(tppcm(dat, design = ~ 1))         # PCM (common slope)
+#' score_test(m_gpcm, against = ~ item + step)     # step effect?
 #' # items 1-2 saturated, items 3-4 GPCM
 #' idx <- rbind(1:3, 4:6, rep(7, 3), rep(8, 3))
-#' mod2 <- TAM::tam.mml.3pl(dat, E = step_design(dat, index = idx),
-#'                          est.variance = FALSE, verbose = FALSE)
+#' m_mix <- fit(tppcm(dat, index = idx))
 #' }
 #' @export
-step_design <- function(dat, model = c("tppcm", "gpcm", "step", "pcm"), index = NULL,
-                        K = NULL) {
-  model <- match.arg(model)
+tppcm <- function(dat, design = ~ item * step, index = NULL, K = NULL) {
+  code <- .parse_design(design)
+  if (code == "rank1" && is.null(index))
+    stop("design = ~ item + step (Rank-1, a_il = alpha_i * gamma_l) is multiplicative and cannot be ",
+         "written as a linear design for TAM; fit it with xxirt_tppcm(dat, design = ~ item + step)",
+         call. = FALSE)
+  .design_array(dat, code, index, K)
+}
+
+# The design formulas of the five models (internal codes as names)
+.design_codes <- c(pcm = "~ 1", gpcm = "~ item", step = "~ step", rank1 = "~ item + step",
+                   tppcm = "~ item * step")
+.design_names <- c(pcm = "PCM", gpcm = "GPCM", step = "step model", rank1 = "Rank-1 product form",
+                   tppcm = "saturated TPPCM")
+
+.design_formula <- function(code) {
+  if (!code %in% names(.design_codes)) return(NULL)
+  stats::as.formula(.design_codes[[code]], env = baseenv())
+}
+
+# design formula -> internal code "pcm", "gpcm", "step", "rank1", "tppcm"
+.parse_design <- function(design, arg = "design") {
+  if (is.character(design))
+    stop("'", arg, "' must be a formula: ~ 1, ~ item, ~ step, ~ item + step or ~ item * step ",
+         "(model names such as \"", design[1], "\" are no longer used)", call. = FALSE)
+  if (!inherits(design, "formula") || length(design) != 2)
+    stop("'", arg, "' must be a one-sided formula in item and step: ~ 1, ~ item, ~ step, ",
+         "~ item + step or ~ item * step", call. = FALSE)
+  tt <- stats::terms(design)
+  lab <- attr(tt, "term.labels")
+  lab[lab == "step:item"] <- "item:step"
+  bad <- setdiff(lab, c("item", "step", "item:step"))
+  if (length(bad) || !is.null(attr(tt, "offset")))
+    stop("'", arg, "' may only contain the terms 1, item, step and item:step; not ",
+         paste(c(bad, if (!is.null(attr(tt, "offset"))) "offset()"), collapse = ", "), call. = FALSE)
+  if (attr(tt, "intercept") == 0)
+    stop("'", arg, "' must keep the intercept (the overall level mu of log a_il); remove '- 1' or '+ 0'",
+         call. = FALSE)
+  if ("item:step" %in% lab) "tppcm"
+  else if (all(c("item", "step") %in% lab)) "rank1"
+  else if ("item" %in% lab) "gpcm"
+  else if ("step" %in% lab) "step"
+  else "pcm"
+}
+
+# Step design array for an internal design code ("pcm", "gpcm", "step",
+# "tppcm") or a custom index
+.design_array <- function(dat, code = "tppcm", index = NULL, K = NULL) {
+  model <- code
   custom <- !is.null(index)
   dat <- .as_items(dat)
   I <- ncol(dat)
@@ -73,7 +165,7 @@ step_design <- function(dat, model = c("tppcm", "gpcm", "step", "pcm"), index = 
                     pcm   = matrix(1L, I, L))
   }
   index <- as.matrix(index)
-  if (!all(dim(index) == c(I, L))) stop("index must be a ", I, " x ", L, " matrix", call. = FALSE)
+  if (!all(dim(index) == c(I, L))) stop("index must be a ", I, " x ", L, " matrix (items x steps)", call. = FALSE)
   index[!has] <- NA
   if (anyNA(index[has])) stop("index has missing entries for existing steps", call. = FALSE)
   used <- sort(unique(index[has]))
@@ -92,12 +184,9 @@ step_design <- function(dat, model = c("tppcm", "gpcm", "step", "pcm"), index = 
     pcm   = "disc")
   dimnames(E) <- list(items, paste0("Cat", 0:L), "Dim1", pnames)
   attr(E, "index") <- index
+  attr(E, "design") <- if (custom) NULL else .design_formula(model)
   E
 }
-
-#' @rdname step_design
-#' @export
-tppcm <- step_design
 
 # Categories must be coded 0, 1, ..., K_i - 1 with every category observed
 .check_coding <- function(dat) {
@@ -137,3 +226,5 @@ tppcm <- step_design
   }
   as.matrix(dat)
 }
+
+.deparse_design <- function(f) .design_codes[[.parse_design(f)]]

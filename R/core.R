@@ -111,7 +111,7 @@
   col_by <- function(f, labels) matrix(sapply(labels, f), nrow = p)
 
   if (model == "E") {
-    if (is.null(E)) stop("model 'E' needs the design array E")
+    if (is.null(E)) stop("model 'E' needs the design array E", call. = FALSE)
     Ja <- matrix(0, p, dim(E)[4])
     for (r in ia) {
       i <- parindex$itemnr[r]; l <- parindex$step[r]
@@ -134,7 +134,7 @@
     Ja <- NULL
   } else if (model == "rank1") {
     L <- max(parindex$step)
-    if (length(unique(table(parindex$itemnr))) > 1) stop("rank1 needs equal category numbers")
+    if (length(unique(table(parindex$itemnr))) > 1) stop("the product form ('rank1') needs the same number of categories in every item", call. = FALSE)
     A <- matrix(par[ia], ncol = L, byrow = TRUE)
     alpha <- A[, 1]; gamma <- colMeans(A / alpha)
     Jal <- col_by(function(it) {
@@ -145,7 +145,7 @@
       v[sel] <- alpha[parindex$itemnr[sel]]; v }, 2:L)
     colnames(Jal) <- paste0(items, "_alpha"); colnames(Jga) <- paste0("gamma", 2:L)
     Ja <- cbind(Jal, Jga)
-  } else stop("unknown model: ", model)
+  } else stop("unknown model '", model, "'; use one of \"E\", \"tppcm\", \"gpcm\", \"step\", \"pcm\", \"pcm_fixed\", \"rank1\"", call. = FALSE)
   J <- cbind(Ja, if (is.null(loc)) unit_cols(id) else loc)
   rownames(J) <- parindex$name
   J

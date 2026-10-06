@@ -4,7 +4,7 @@
 \alias{mi}
 \title{Modification indices for single step discriminations}
 \usage{
-mi(x, pars = NULL, info = c("louis", "opg"))
+mi(x, pars = NULL, info = c("louis", "opg"), adjust = "holm")
 }
 \arguments{
 \item{x}{A fitted model (see \code{\link[=get_parts]{get_parts()}}) or a \code{get_parts} object.}
@@ -12,10 +12,14 @@ mi(x, pars = NULL, info = c("louis", "opg"))
 \item{pars}{Names of step discriminations (default: all, e.g. \code{"I1_disc2"}).}
 
 \item{info}{\code{"louis"} (observed information) or \code{"opg"}.}
+
+\item{adjust}{Multiple-testing adjustment of \code{p_adj} over all rows, a method
+of \code{\link[stats:p.adjust]{stats::p.adjust()}} (\code{"none"} for none).}
 }
 \value{
-Data frame (class \code{tppcm_table}) with \code{par}, \code{MI}, \code{df}, \code{p}, \code{EPC}
-(expected change of the step discrimination), sorted by \code{MI}.
+Data frame (class \code{tppcm_table}) with \code{par}, \code{MI}, \code{df}, \code{p},
+\code{p_adj}, \code{EPC} (expected change of the step discrimination), sorted by
+\code{MI}.
 }
 \description{
 For each step discrimination that is restricted in \code{x}, the 1-df score

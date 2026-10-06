@@ -13,7 +13,7 @@ test_that("irt_pars gives TAM's GPCM locations and handles the PCM", {
   expect_true(all(is.na(pc$se[, 1:3])))
   expect_false(is.na(pc$group$SE_VAR))
 
-  x <- irt_pars(xxirt_tppcm(dat, "rank1"), IRTpars = FALSE)
+  x <- irt_pars(xxirt_tppcm(dat, design = ~ item + step), IRTpars = FALSE)
   expect_equal(c(x$group$MEAN, x$group$VAR), c(0, 1))
 })
 

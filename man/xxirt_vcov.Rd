@@ -22,7 +22,7 @@ shortcut that causes the error.
 \donttest{
 data(data.Students, package = "CDM")
 sc <- as.matrix(data.Students[, c("sc1", "sc2", "sc3", "sc4")])
-fit <- xxirt_tppcm(sc, "rank1")
+fit <- xxirt_tppcm(sc, design = ~ item + step)
 fit
 round(sqrt(diag(xxirt_vcov(fit))), 3)
 }

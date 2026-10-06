@@ -7,8 +7,8 @@
 tppcmtree(
   formula,
   data,
-  model = c("tppcm", "gpcm", "pcm"),
-  parm = c("all", "disc", "diff", "slope", "int"),
+  design = ~item * step,
+  parm = c("disc", "diff"),
   param = c("irt", "si"),
   orthogonal = TRUE,
   impact = NULL,
@@ -22,10 +22,12 @@ and \code{z} are partitioning covariates.}
 
 \item{data}{Data frame.}
 
-\item{model}{Node model: \code{"tppcm"}, \code{"gpcm"} or \code{"pcm"}.}
+\item{design}{Node model, a linear design formula of \code{\link[=tppcm]{tppcm()}}:
+\code{~ item * step} (default), \code{~ item}, \code{~ step} or \code{~ 1}.}
 
-\item{parm}{Parameters used in the instability tests: \code{"all"}, the slope
-block (\code{"disc"} or \code{"slope"}) or the location block (\code{"diff"} or \code{"int"}).}
+\item{parm}{Parameters used in the instability tests: \code{c("disc", "diff")}
+(default, both blocks), the slope block (\code{"disc"} or \code{"slope"}) or the
+location block (\code{"diff"} or \code{"int"}). (\code{"all"} is accepted for both.)}
 
 \item{param}{Parameterization of the scores: \code{"irt"} (\code{disc}, \code{diff}) or
 \code{"si"} (\code{slope}, \code{int}); see \code{get_parts(fit, "estfun")}.}
@@ -55,15 +57,17 @@ splits the sample along covariates where the item parameters are unstable
 (Zeileis, Hothorn & Hornik, 2008), using \code{\link[partykit:mob]{partykit::mob()}}. With
 \code{parm = "disc"} (or \code{"slope"}) only instability of the slopes drives the
 splits; with \code{parm = "diff"} (or \code{"int"}) only instability of the step
-difficulties (intercepts); with \code{"all"} both.
+difficulties (intercepts); with \code{c("disc", "diff")} (default) both.
 }
 \details{
-Node models: \code{"tppcm"} (step discriminations), \code{"gpcm"} (item
-discriminations; compare \code{\link[psychotree:gpcmtree]{psychotree::gpcmtree()}}) and \code{"pcm"} (one common
-slope; compare \code{\link[psychotree:pctree]{psychotree::pctree()}}). With the trait fixed at
-\eqn{N(0,1)}, the common slope of the PCM node plays the role of the latent
-standard deviation, so for \code{"pcm"} use \code{parm = "diff"} to look for DIF
-rather than for differences in trait variance.
+Node models are the linear designs of \code{\link[=tppcm]{tppcm()}}: \code{~ item * step} (step
+discriminations), \code{~ item} (item discriminations, the GPCM; compare
+\code{\link[psychotree:gpcmtree]{psychotree::gpcmtree()}}), \code{~ step} (one discrimination per step, common to
+the items) and \code{~ 1} (one common slope; compare \code{\link[psychotree:pctree]{psychotree::pctree()}}).
+With the trait fixed at \eqn{N(0,1)}, the common slope of the \code{~ 1} node
+plays the role of the latent standard deviation, so for \code{~ 1} use
+\code{parm = "diff"} to look for DIF rather than for differences in trait
+variance.
 
 \strong{Impact is not DIF.} The latent trait is \eqn{N(0,1)} in every node, so a
 covariate related to ability (groups that differ in their mean) is split on
@@ -83,7 +87,7 @@ message. Increase \code{minsize} or use a less demanding node model.
 \donttest{
 data("VerbalAggression", package = "psychotools")
 tr <- tppcmtree(resp ~ gender + anger, data = VerbalAggression,
-                model = "pcm", parm = "diff", minsize = 50)
+                design = ~ 1, parm = "diff", minsize = 50)
 tr
 head(t(coef(tr)))
 }
