@@ -1,6 +1,38 @@
-# tppcm (development version)
+# tppcm 0.1.0
 
-## Breaking changes
+First release.
+
+## Features
+
+* `tppcm(dat, design = )`: step design for `TAM::tam.mml.3pl()`. Submodels
+  are given by a design formula for the step discriminations (`~ 1` PCM,
+  `~ item` GPCM, `~ step`, `~ item * step` saturated TPPCM) and any linear
+  restriction through `index`; items may have different numbers of
+  categories.
+* `xxirt_tppcm()`, `xxirt_vcov()`: product form `a_il = alpha_i gamma_l` and
+  the bound `a_il >= 0` with `sirt::xxirt()`.
+* `irt_pars()`: compact report with fit header, correct standard errors
+  (observed information), long format and parameters of the fitted model.
+* `get_parts()`: components of a fit (`what = ` as in `lme4::getME()`),
+  with `vcov()`, `logLik()` and `nobs()` methods.
+* `step_info()`: Fisher information split into step contributions.
+* Tests: `wald_test()`, `score_test()`, `item_test()`, `mi()` (modification
+  indices and EPCs), `m2()` (M2, C2, M2*, RMSEA2, SRMSR, CFI, TLI; missing
+  data under MCAR).
+* DIF and DSF: `dif_test()` (score-based and per-step LM tests),
+  `dsf_design()` and `dsf()` (multigroup designs and likelihood ratio tests)
+  and `tppcmtree()` (model-based recursive partitioning).
+* `sim_tppcm()` for simulating data.
+* Vignettes: tutorial and recipes, in English and Traditional Chinese, using
+  data sets from TAM, CDM, mirt and psychotools.
+
+## Changes made before the first CRAN release
+
+The package was first submitted to CRAN on 2 October 2026. That submission
+was still waiting for manual review when this version was prepared; this
+version replaces it.
+
+### Interface
 
 * Submodels are specified by a design formula for the step discriminations
   (CBD), read as an item x step layout on the log scale,
@@ -22,7 +54,7 @@
 * `dif_test()`: the default is now `parm = c("disc", "diff")` (both blocks;
   `"all"` is still accepted). `tppcmtree()` uses the same `parm` values.
 
-## New features: differential step functioning (DSF)
+### Differential step functioning (DSF)
 
 * `dif_test(fit, g, by = "step")` on a multigroup fit
   (`tam.mml.3pl(..., group = g, est.variance = FALSE)`) tests every step
@@ -43,7 +75,7 @@
   scale. `items =` also accepts single steps (`"item:step"`), so the units
   flagged by `dif_test(by = "step")` can be passed directly.
 
-## Improvements
+### Improvements
 
 * `dif_test()` on multigroup fits with a factor covariate: the LM test is the
   score test of the model with the tested parameters split by the levels of
@@ -64,7 +96,7 @@
   instead of the internal codes 1, ..., G.
 * Error messages are consistent (no call, actionable hints).
 
-## Bug fixes
+### Bug fixes
 
 * `dif_test()` and `tppcmtree(orthogonal = TRUE)` no longer fail with "system
   is computationally singular" when case-wise scores are (nearly) linearly
@@ -76,7 +108,7 @@
 * `print()` of tables keeps group names such as `"36"` (was `"X36"`).
 * Recipes: `irt_pars()$SE` (returns `NULL`) corrected to `$se`.
 
-## Documentation
+### Documentation
 
 * `?tppcm` and `?tppcm-package` explain the log-scale item x step view of the
   five models (the interaction means that items differ in the shape of their
@@ -90,10 +122,7 @@
   (screen with `dif_test(by = "step")`, decompose with `dsf()`,
   configural/metric/scalar with `dsf_design()`), with simulation evidence.
 
-# tppcm 0.1.0
-
-First release. Changes after the internal code review (statistician and
-applied-user reviews, October 2026):
+### Internal code review (statistician and applied-user reviews, October 2026)
 
 * Multigroup fits: the free latent means and variances of groups 2, ..., G are
   part of the parameter vector (scores, Louis information, standard errors);
@@ -108,28 +137,8 @@ applied-user reviews, October 2026):
   categories.
 * `irt_pars()` blanks the difficulty of steps whose discrimination is near 0
   and lists them; `as.data.frame()` method; `level` is validated.
-* Model labels name the design (`GPCM design (tam.mml.3pl)` etc.).
 * `xxirt_tppcm()` objects print a short summary; `coef()` for `get_parts()`
   objects; `dif_test()` keeps the item order; `tppcmtree()` prints the splits
   only; input checks and messages in several functions.
 * `m2()` documents the MCAR assumption and the difference to mirt's C2 under
   misfit; `mi()` documents the EPC as a one-step approximation.
-
-* `tppcm()` (alias `step_design()`): step design for `TAM::tam.mml.3pl()`;
-  saturated TPPCM, GPCM, step model, PCM and any linear restriction through
-  `index`; items may have different numbers of categories.
-* `xxirt_tppcm()`, `xxirt_vcov()`: product form `a_il = alpha_i gamma_l` and
-  the bound `a_il >= 0` with `sirt::xxirt()`.
-* `irt_pars()`: compact report with fit header, correct standard errors
-  (observed information), long format and parameters of the fitted model.
-* `get_parts()`: components of a fit (`what = ` as in `lme4::getME()`),
-  with `vcov()`, `logLik()` and `nobs()` methods.
-* `step_info()`: Fisher information split into step contributions.
-* Tests: `wald_test()`, `score_test()`, `item_test()`, `mi()` (modification
-  indices and EPCs), `m2()` (M2, C2, M2*, RMSEA2, SRMSR, CFI, TLI; missing
-  data under MCAR).
-* DIF: `dif_test()` (score-based tests per step, item or block) and
-  `tppcmtree()` (model-based recursive partitioning).
-* `sim_tppcm()` for simulating data.
-* Vignettes: tutorial and recipes, in English and Traditional Chinese, using
-  data sets from TAM, CDM, mirt and psychotools.

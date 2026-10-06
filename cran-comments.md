@@ -1,10 +1,24 @@
 ## Resubmission
 
-This is a resubmission. In this version I have:
+This is a resubmission of tppcm 0.1.0. It replaces the submission of
+2 October 2026, which is still waiting for manual review (its auto-check
+passed with 1 NOTE: new submission and possibly misspelled words). The
+version number is unchanged because the package has never been on CRAN.
 
-* Fixed `inst/CITATION`, which called `utils::packageVersion("tppcm")` and
-  therefore failed when the package was not installed. It now uses
-  `meta$Version`.
+Changes since that submission:
+
+* `inst/CITATION` uses `meta$Version` instead of
+  `utils::packageVersion("tppcm")`, so it can be read when the package is
+  not installed (requested by Uwe Ligges on 2 October 2026).
+* New interface: submodels are specified by a design formula for the step
+  discriminations (`design = ~ item * step` etc.) in `tppcm()`,
+  `xxirt_tppcm()`, `tppcmtree()` and `score_test()`.
+* New functions for differential step functioning: `dsf_design()` and
+  `dsf()`, and a per-step test in `dif_test(by = "step")`.
+* `inst/WORDLIST` lists the author names and acronyms in DESCRIPTION that
+  the spell check flagged.
+
+See NEWS.md for the full list.
 
 ## R CMD check results
 
@@ -16,31 +30,16 @@ This is a resubmission. In this version I have:
 
 Local:
 
-* macOS 27, R 4.5, TAM 4.3-25, sirt 4.2-133:
-  `R CMD check --as-cran --run-donttest`: 0 errors | 0 warnings | 3 notes
-  (new submission; "unable to verify current time" because the machine
-  had no network access; HTML validation skipped because the local HTML
-  Tidy is too old. The last two are local and not package issues.)
+* macOS, R 4.5: `R CMD check --as-cran`: 0 errors | 0 warnings.
+  The PDF manual was not built locally (inconsolata.sty is missing); it was
+  built on GitHub Actions and win-builder (below).
 
-GitHub Actions (r-lib/actions check-standard, `--as-cran`, 2026-10-01):
+GitHub Actions (r-lib/actions, `R CMD check --as-cran` including the PDF
+manual, DATE_GHA):
 
-| Platform | R | Status |
-|---|---|---|
-| macOS (aarch64) | 4.6.1 | OK |
-| Windows Server 2022 (x86_64, ucrt) | 4.6.1 | OK |
-| Ubuntu 24.04 (x86_64) | 4.6.1 | OK |
-| Ubuntu 24.04 (x86_64) | 4.5.3 (oldrel-1) | OK |
-| Ubuntu 24.04 (x86_64) | R-devel (2026-09-30 r90605) | OK |
+GHA_TABLE
 
-All 230 testthat expectations pass on every platform.
-
-R-hub v2 (2026-10-01; all three jobs completed successfully):
-
-| Platform | R |
-|---|---|
-| linux (Ubuntu 24.04, x86_64) | R-devel |
-| windows | R-devel |
-| macos (x86_64) | R-devel |
+win-builder: WINBUILDER_RESULT
 
 `urlchecker::url_check()` and `spelling::spell_check_package()`: no broken
 URLs, no misspellings.

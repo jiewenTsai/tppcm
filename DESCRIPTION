@@ -1,7 +1,7 @@
 Package: tppcm
 Type: Package
 Title: Step Discriminations for the Two-Parameter Partial Credit Model on Top of 'TAM'
-Version: 0.1.0.9000
+Version: 0.1.0
 Authors@R: person("Jie-Wen", "Tsai", email = "tsai.jiewen@gmail.com", role = c("aut", "cre"))
 Description: Tools for the two-parameter partial credit model (TPPCM; Yu,
     1991), in which every step of a polytomous item has its own discrimination. Estimation is
