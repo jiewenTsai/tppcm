@@ -11,6 +11,8 @@
 #' `psychotools::threshpar()`). With `IRTpars = FALSE` it is
 #' `slope * theta + int`, where the step intercepts `int` cumulate to the
 #' category intercepts of mirt / psychotools (`d_k`), which equal `-AXsi_` in TAM.
+#' In the terms of the category boundary literature `disc` (= `slope`) is
+#' the CBD, `diff` the CBL and `int` the IBD (see [tppcm-package]).
 #' Standard errors come from the observed information of the fitted model
 #' (delta method for `diff`), not from TAM's `se.gammaslope`/`se.xsi`.
 #'
@@ -28,6 +30,7 @@
 #' @param restricted Return the parameters of the fitted model instead, e.g.
 #'   the item slopes of the GPCM or \eqn{\alpha_i, \gamma_l} of the product
 #'   form, with standard errors and confidence limits.
+#' @details
 #' A step discrimination that is numerically 0 (an estimate on the bound of
 #' `xxirt_tppcm()`) or practically flat (`|disc| < 0.1`) makes the step
 #' difficulty `diff = -int / disc` meaningless; for such steps `diff` and its
@@ -202,7 +205,7 @@ print.irt_pars <- function(x, digits = 3, ...) {
 print.tppcm_table <- function(x, digits = 3, ...) {
   if (!is.null(attr(x, "title"))) cat(attr(x, "title"), "\n")
   if (!nrow(x)) { cat("(nothing to test)\n"); return(invisible(x)) }
-  y <- as.data.frame(unclass(x), stringsAsFactors = FALSE)
+  y <- as.data.frame(unclass(x), stringsAsFactors = FALSE, optional = TRUE)
   rownames(y) <- rownames(x)
   for (nm in names(y)) {
     v <- y[[nm]]

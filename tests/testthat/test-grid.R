@@ -8,8 +8,8 @@ test_that("every function runs on every supported fit without warnings", {
     gpcm = q(TAM::tam.mml.2pl(dat, irtmodel = "GPCM", verbose = FALSE)),
     nrm = q(TAM::tam.mml.2pl(dat, irtmodel = "2PL", verbose = FALSE)),
     tppcm = q(TAM::tam.mml.3pl(dat, E = tppcm(dat), est.variance = FALSE, verbose = FALSE)),
-    step = q(TAM::tam.mml.3pl(dat, E = tppcm(dat, "step"), est.variance = FALSE, verbose = FALSE)),
-    xx_gpcm = q(xxirt_tppcm(dat, "gpcm")))
+    step = q(TAM::tam.mml.3pl(dat, E = tppcm(dat, design = ~ step), est.variance = FALSE, verbose = FALSE)),
+    xx_gpcm = q(xxirt_tppcm(dat, design = ~ item)))
   g <- factor(rep(1:2, 300))
   saturated <- c("nrm", "tppcm")
   for (nm in names(fits)) {

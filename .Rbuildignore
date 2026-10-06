@@ -12,3 +12,4 @@
 ^\.gitignore$
 ^\.DS_Store$
 ^CRAN-SUBMISSION$
+^TODO\.md$

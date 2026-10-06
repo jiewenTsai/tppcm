@@ -90,20 +90,34 @@ p_bad <- irt_pars(fit_bad, fit = FALSE)
 
 **問題**：要估計比飽和模式更精簡的模式，或只讓部分題目自由。
 
-**解法**：`model =` 選常用設計；`index =` 寫任意的等式限制（同一個數字 = 同一個參數）；固定某一步用 TAM 的 `gammaslope.fixed`：
+**解法**：用 `design =` 選常用模式。它是步驟鑑別度的公式，看成對數尺度上的題目 × 步驟配置，$\log a_{il} = \mu + \alpha_i + \gamma_l + (\alpha\gamma)_{il}$：
+
+| `design =` | 模式 | $a_{il}$ | 步驟的形狀 |
+|---|---|---|---|
+| `~ item * step`（預設） | 飽和 TPPCM | $a_{il}$ | 各題不同（交互作用） |
+| `~ item + step` | Rank-1（A5；非線性，用 `xxirt_tppcm()`） | $\alpha_i\gamma_l$ | 形狀相同，高度各題不同 |
+| `~ item` | GPCM | $\alpha_i$ | 平坦 |
+| `~ step` | 步驟模式 | $\gamma_l$ | 形狀與高度各題都相同 |
+| `~ 1` | PCM | $a$ | 平坦，各題相同 |
+
+`index =` 寫其他任意的等式限制（同一個數字 = 同一個參數），優先於 `design`；固定某一步用 TAM 的 `gammaslope.fixed`：
 
 ```{r a3}
-fit_gpcm <- tam.mml.3pl(sc, E = tppcm(sc, "gpcm"), est.variance = FALSE, verbose = FALSE)
-fit_step <- tam.mml.3pl(sc, E = tppcm(sc, "step"), est.variance = FALSE, verbose = FALSE)
-fit_pcm  <- tam.mml.3pl(sc, E = tppcm(sc, "pcm"),  est.variance = FALSE, verbose = FALSE)
-dimnames(tppcm(sc, "step"))[[4]]                  # parameter names
+fit_gpcm <- tam.mml.3pl(sc, E = tppcm(sc, design = ~ item), est.variance = FALSE, verbose = FALSE)
+fit_step <- tam.mml.3pl(sc, E = tppcm(sc, design = ~ step), est.variance = FALSE, verbose = FALSE)
+fit_pcm  <- tam.mml.3pl(sc, E = tppcm(sc, design = ~ 1),  est.variance = FALSE, verbose = FALSE)
+dimnames(tppcm(sc, design = ~ step))[[4]]                  # parameter names
 idx <- rbind(1:3, 4:6, rep(7, 3), rep(8, 3))      # only sc1 and sc2 saturated
 fit_mix <- tam.mml.3pl(sc, E = tppcm(sc, index = idx), est.variance = FALSE, verbose = FALSE)
 fit_fix <- tam.mml.3pl(sc, E = tppcm(sc), est.variance = FALSE, verbose = FALSE,
                        gammaslope.fixed = cbind(2, 3))                  # sc1 step 2 fixed at 3
 ```
 
-**討論**：`index` 的編號不必連續，會自動重新編號。
+**討論**：`index` 的編號不必連續，會自動重新編號。`~ item:step` 與 `~ item + step + item:step` 和 `~ item * step` 相同。交互作用項表示各題步驟鑑別度的形狀（比值 $a_{il}/a_{il'}$）不同；`~ step` 則是把 TAM `formulaA = ~ item + step`（評定量尺）的想法用在鑑別度上。Rank-1 是乘法形式，所以 `tppcm()` 不接受：
+
+```{r a3-broken, error = TRUE}
+tppcm(sc, design = ~ item + step)
+```
 
 **參見**：B1（報表）、C3（模式比較）。
 
@@ -120,18 +134,18 @@ fit_timss <- tam.mml.3pl(timss, E = tppcm(timss), est.variance = FALSE, verbose 
 irt_pars(fit_timss, se = FALSE)
 ```
 
-**討論**：不存在的步驟在報表中留白，在 `index` 中是 `NA`。乘積形式（`xxirt_tppcm(, "rank1")`）和 `score_test(against = "rank1")` 需要各題類別數相同。
+**討論**：不存在的步驟在報表中留白，在 `index` 中是 `NA`。Rank-1（`xxirt_tppcm(dat, design = ~ item + step)`）和 `score_test(against = ~ item + step)` 需要各題類別數相同。
 
 **參見**：A1、`?tppcm`。
 
-## A5. 乘積形式與鑑別度的下界
+## A5. Rank-1（乘積形式）與鑑別度的下界
 
 **問題**：想估計 $a_{il} = \alpha_i \gamma_l$，或限制鑑別度不為負。TAM 兩者都做不到。
 
 **解法**：`xxirt_tppcm()` 用 sirt 估計：
 
 ```{r a5}
-fit_r1 <- xxirt_tppcm(as.matrix(sc), "rank1")
+fit_r1 <- xxirt_tppcm(as.matrix(sc), design = ~ item + step)
 irt_pars(fit_r1, restricted = TRUE)              # alpha_i and gamma_l
 dim(xxirt_vcov(fit_r1))                          # covariance matrix of the xxirt fit
 ```
@@ -173,7 +187,7 @@ irt_pars(fit_gpcm, restricted = TRUE)                         # parameters of th
 
 ```{r b1-kable}
 p <- irt_pars(fit_sat, fit = FALSE)
-knitr::kable(cbind(p$items[, 1:3], p$SE[, 1:3]), digits = 2,
+knitr::kable(cbind(p$items[, 1:3], p$se[, 1:3]), digits = 2,
              col.names = c(paste0("a", 1:3), paste0("SE(a", 1:3, ")")))
 ```
 
@@ -269,25 +283,25 @@ wald_test(fit_gpcm)          # in a GPCM the steps are equal by construction
 
 ```{r c2}
 score_test(fit_gpcm)                    # GPCM against the saturated TPPCM
-score_test(fit_gpcm, "rank1")           # GPCM against the product form
+score_test(fit_gpcm, against = ~ item + step)           # GPCM against the product form
 item_test(fit_gpcm)                     # which items
 head(mi(fit_gpcm), 5)                   # which steps (modification indices and EPCs)
 ```
 
 ```{r c2-broken, error = TRUE}
 score_test(fit_sat)                     # already saturated
-score_test(fit_timss, "rank1")          # TIMSS items have 1 or 2 steps
+score_test(fit_timss, against = ~ item + step)          # TIMSS items have 1 or 2 steps
 ```
 
-**討論**：score test 只用受限模式的估計結果。`against` 可以是 `"tppcm"`、`"rank1"`、`"gpcm"`、`"step"`，也可以用 `D =` 給任意方向。EPC 的符號說明該步驟應該比 GPCM 的共同斜率更陡（正）還是更平（負）；這裡每題第 3 步都較平，乘積形式用一個 $\gamma_3$ 就能表達。模式名稱 `GPCM design (tam.mml.3pl)` 表示用 `tppcm(dat, "gpcm")` 估計的 GPCM；用 `tam.mml.2pl(irtmodel = "GPCM")` 估計時會顯示 `GPCM`，結果相同。
+**討論**：score test 只用受限模式的估計結果。`against` 是較大模式的設計公式（預設 `~ item * step`；`~ item + step`；`~ item`；`~ step`），也可以用 `D =` 給任意方向。GPCM 對 `~ item + step` 檢定步驟效果，Rank-1 對 `~ item * step` 檢定題目 × 步驟交互作用。EPC 的符號說明該步驟應該比 GPCM 的共同斜率更陡（正）還是更平（負）；這裡每題第 3 步都較平，Rank-1 用一個 $\gamma_3$ 就能表達。模式名稱 `GPCM, design ~ item (tam.mml.3pl)` 表示用 `tppcm(dat, design = ~ item)` 估計的 GPCM；用 `tam.mml.2pl(irtmodel = "GPCM")` 估計時會顯示 `GPCM, design ~ item`，結果相同；`get_parts(fit, "formula")` 傳回設計公式。
 
 **參見**：C1、C3、`vignette("tppcm-tutorial-zh")` 第 4 節。
 
 ## C3. 巢套模式的概似比檢定
 
-**問題**：比較 PCM、GPCM、步驟模式、乘積形式與飽和模式。
+**問題**：比較 PCM、GPCM、步驟模式、Rank-1 與飽和模式。
 
-**解法**：所有模式都用斜率參數化（PCM 用 `tppcm(dat, "pcm")`），再交給 TAM：
+**解法**：所有模式都用斜率參數化（PCM 用 `tppcm(dat, design = ~ 1)`），再交給 TAM：
 
 ```{r c3}
 lr <- IRT.compareModels(fit_pcm, fit_gpcm, fit_step, fit_sat)$LRtest
@@ -308,7 +322,7 @@ suppressWarnings(IRT.compareModels(fit_gpcm, fit_r1, fit_sat))$LRtest
 
 **討論**：
 
-- `IRT.compareModels()` 會比較所有成對的模式，不檢查是否巢套。巢套關係是：PCM ⊂ GPCM、PCM ⊂ 步驟模式 ⊂ 乘積形式 ⊂ 飽和模式、GPCM ⊂ 乘積形式；GPCM 和步驟模式互不包含。
+- `IRT.compareModels()` 會比較所有成對的模式，不檢查是否巢套。巢套關係是：`~ 1` ⊂ `~ item`、`~ 1` ⊂ `~ step` ⊂ `~ item + step` ⊂ `~ item * step`、`~ item` ⊂ `~ item + step`；`~ item` 和 `~ step` 互不包含。
 - 不要拿 `tam.mml()` 的 PCM（估變異數）和斜率參數化的模式做 LR：兩者在數學上巢套，但在 TAM 預設的 21 個積分點下數值積分誤差不同，LR 甚至會是負的。
 - 混用 TAM 與 xxirt 物件時，只看 `LRtest`；TAM 計算 xxirt 物件的 GHP 欄位時會發出警告，該欄不正確。
 
@@ -337,27 +351,27 @@ m2(fit_w)                    # not available with weights
 
 **參見**：`?m2`、B1。
 
-# D. 差異試題功能（DIF）
+# D. 差異試題功能與步驟差異功能（DIF、DSF）
 
 ## D1. 已知分組：哪一步有 DIF
 
 **問題**：男生和女生在某一步的鑑別度或難度上是否不同？
 
-**解法**：估一次飽和模式，再用 `dif_test()`：
+**解法**：共變數和能力無關時，對全體樣本估一次飽和模式，再用 `dif_test()`：
 
 ```{r d1}
 cov <- data.timssAusTwn.scored[, c("IDCNTRY", "ITSEX")]
 cov$country <- factor(cov$IDCNTRY, labels = c("AUS", "TWN"))
 cov$sex     <- factor(cov$ITSEX,   labels = c("girl", "boy"))
 sp_timss <- get_parts(fit_timss)                 # reused below
-d_disc <- dif_test(sp_timss, cov$sex)            # every step discrimination
+d_disc <- dif_test(sp_timss, cov$sex, parm = "disc")   # every step discrimination
 d_disc[d_disc$p < 0.10, ]
 dif_test(sp_timss, cov$sex, parm = "diff", by = "item")
 ```
 
-**討論**：每個檢定單位都先對其他所有參數殘差化（效率 score），所以難度的 DIF 不會被誤判成鑑別度的 DIF，反之亦然。這裡沒有任何單位通過 Holm 校正。若只估 GPCM，鑑別度只有題目層次，步驟的 DIF 可能看不到或被誤報成難度 DIF。
+**討論**：每個檢定單位都先對其他所有參數殘差化（效率 score），所以難度的 DIF 不會被誤判成鑑別度的 DIF，反之亦然。這裡沒有任何單位通過 Holm 校正。若只估 GPCM，鑑別度只有題目層次，步驟的 DIF 可能看不到或被誤報成難度 DIF。關於衝擊的訊息是在提醒：只有各組能力沒有差異時，單一群組估計才成立；否則請把分組放進模式（D2），並採用 D5 的逐步流程。
 
-**參見**：`?dif_test`、D2、D3。
+**參見**：`?dif_test`、D2、D3、D5。
 
 ## D2. 和能力相關的共變數：衝擊（impact）不是 DIF
 
@@ -370,17 +384,16 @@ dif_test(sp_timss, cov$country, parm = "diff", by = "item")
 **解法**：單一群組模式假設澳洲和臺灣學生共用同一個 $N(0,1)$ 分配，但臺灣學生的平均高出約 1.5 個標準差。檢定找到的是這個衝擊，不是 DIF。改估多群組模式，讓各組的分配成為模式的一部分，再做檢定：
 
 ```{r d2-mg}
-fit_mg <- tam.mml.3pl(timss, E = tppcm(timss), group = cov$IDCNTRY,
+fit_mg <- tam.mml.3pl(timss, E = tppcm(timss), group = cov$country,
                       est.variance = FALSE, verbose = FALSE)
 irt_pars(fit_mg, fit = FALSE)$group
 sp_mg <- get_parts(fit_mg)
-dif_test(sp_mg, cov$country, parm = "diff", by = "item")
-dif_test(sp_mg, cov$country, parm = "disc", by = "item")
+dif_test(sp_mg, cov$country, by = "item")             # all parameters of an item jointly
 ```
 
-**討論**：兩國之間有三題保留難度 DIF，三題出現鑑別度 DIF。任何和能力相關的共變數都是如此，包括連續共變數；連續共變數請同樣用 TAM 的潛在迴歸（`Y =`）。DIF 樹也有同樣的問題：在這類共變數上的分裂首先反映的是能力差異（D4）。
+**討論**：把兩國的潛在平均數與變異數放進模式之後，逐題檢定談的才是題目，而不是能力；仍有七題在兩國之間不同（`p_adj`，Holm 校正）。D5 找出是哪幾步，並區分 CBD 與位置的差異。任何和能力相關的共變數都是如此，包括連續共變數；連續共變數請同樣用 TAM 的潛在迴歸（`Y =`）。DIF 樹也有同樣的問題：在這類共變數上的分裂首先反映的是能力差異（D4）。
 
-**參見**：D1、E3。
+**參見**：D1、D5、E3。
 
 ## D3. 數值與有序的共變數
 
@@ -391,7 +404,7 @@ dif_test(sp_mg, cov$country, parm = "disc", by = "item")
 ```{r d3}
 data("VerbalAggression", package = "psychotools")
 va <- VerbalAggression
-fit_va <- tam.mml.3pl(va$resp, E = tppcm(va$resp, "gpcm"), est.variance = FALSE, verbose = FALSE)
+fit_va <- tam.mml.3pl(va$resp, E = tppcm(va$resp, design = ~ item), est.variance = FALSE, verbose = FALSE)
 sp_va <- get_parts(fit_va)
 d_anger <- dif_test(sp_va, va$anger, parm = "diff", by = "item")        # numeric: Cramer-von Mises
 head(d_anger[order(d_anger$p), ], 5)
@@ -416,20 +429,52 @@ dif_test(sp_va, va$anger[-1])                                            # wrong
 **解法**：`tppcmtree()`，分開看難度和鑑別度。以語言攻擊資料為例：
 
 ```{r d4}
-tr_diff <- tppcmtree(resp ~ gender + anger, data = va, model = "pcm", parm = "diff", minsize = 50)
+tr_diff <- tppcmtree(resp ~ gender + anger, data = va, design = ~ 1, parm = "diff", minsize = 50)
 partykit::width(tr_diff)
 partykit::character_split(tr_diff$node$split, tr_diff$data)$name
-tr_disc <- tppcmtree(resp ~ gender + anger, data = va, model = "gpcm", parm = "disc", minsize = 50)
+tr_disc <- tppcmtree(resp ~ gender + anger, data = va, design = ~ item, parm = "disc", minsize = 50)
 partykit::width(tr_disc)
 ```
 
 ```{r d4-broken, error = TRUE}
-tppcmtree(resp ~ gender + anger, data = va, model = "gpcm", parm = "diff", minsize = 50)
+tppcmtree(resp ~ gender + anger, data = va, design = ~ item, parm = "diff", minsize = 50)
 ```
 
-**討論**：難度樹在性別上分裂；鑑別度樹沒有分裂。失敗的那一次呼叫顯示了限制所在：某個節點裡某題的某個類別已經沒有人選，節點模式無法估計。加大 `minsize`，或改用要求較低的節點模式（`"pcm"`）即可。`coef(tree)` 給出各節點的參數。
+**討論**：難度樹在性別上分裂；鑑別度樹沒有分裂。失敗的那一次呼叫顯示了限制所在：某個節點裡某題的某個類別已經沒有人選，節點模式無法估計。加大 `minsize`，或改用要求較低的節點模式（`design = ~ 1`）即可。`coef(tree)` 給出各節點的參數。
 
 **參見**：`?tppcmtree`、D1、D2。
+
+## D5. 已知分組時，哪一步的功能不同（DSF）
+
+**問題**：分組已知（這裡是 D2 的國家）。哪幾條類別界線不同？是鑑別度（CBD）還是位置（IBD／CBL）不同？
+
+**解法**：在多群組估計物件上，先用自由度 2 的聯合 score 檢定逐步篩檢，再用概似比檢定拆解被標出的界線，並比較形貌、計量、純量模式：
+
+```{r d5}
+st <- dif_test(fit_mg, cov$country, by = "step")       # 1. screen (Holm-adjusted p_adj)
+flagged <- st$unit[st$p_adj < 0.05]
+flagged
+dsf(fit_mg, items = "M032692", verbose = FALSE)        # 2. decompose one item (refits)
+d_part <- dsf_design(timss, cov$country, group.partial = list(ibd = "M032692"))
+d_part                                                 # 3. a partial-invariance model
+m_part <- tam.mml.3pl(d_part$resp, A = d_part$A, E = d_part$E, group = cov$country,
+                      variance.fixed = d_part$variance.fixed,
+                      beta.fixed = d_part$beta.fixed, verbose = FALSE)
+IRT.compareModels(fit_mg, m_part)$LRtest
+```
+
+```{r d5-broken, error = TRUE}
+dif_test(fit_mg, cov$country, parm = "disc", by = "step")   # a step is tested jointly
+dsf(fit_timss)                                              # needs a multigroup fit
+```
+
+**討論**：
+
+- `dif_test(by = "step")` 把每一步的 CBD 與位置一起檢定（Glas, 1998；預設 `info = "robust"`，即 Boos, 1992 的廣義 score test），虛無假設不受參數化影響。不要用 `by = "param"` 中自由度 1 的 `disc` 列篩檢：它們把這一步的位置固定為跨組相等，位置的 DSF 會滲進來（見 `vignette("tppcm-tutorial-zh")` 第 6 節）。
+- `dsf()` 以純量模式（`group.equal = c("cbd", "ibd")`，即 lavaan 的負荷量與截距）為基準，一次放開一個參數，其餘界線都當定錨。CBD 列同時放開這一步的位置，因此不受量尺原點影響。`M032692` 的兩步主要是 IBD 不同（LR 81 與 130），CBD 的差異較小（LR 5.5 與 6.8）。每個檢定都要重新估計，請只傳入被標出的界線：`dsf(fit_mg, items = flagged)`。
+- `dsf_design()` 產生形貌（`group.equal = NULL`）、計量（`"cbd"`）、純量模式與部分不變模式（`group.partial`），並處理潛在平均數與變異數的識別；如上用 `tam.mml.3pl()` 估計。純量模式的對數概似與 `fit_mg` 相同。
+
+**參見**：`?dif_test`、`?dsf`、`?dsf_design`、D2、`vignette("tppcm-tutorial-zh")` 第 6 節。
 
 # E. 模擬、不支援的模式、加權與群組
 
@@ -492,9 +537,9 @@ irt_pars(sc)                                                                    
 **解法**：
 
 ```{r e3}
-irt_pars(fit_w, fit = FALSE)$SE[1:2, ]                                            # weights enter the SEs
+irt_pars(fit_w, fit = FALSE)$se[1:2, ]                                            # weights enter the SEs
 fit_w1 <- tam.mml.2pl(sc, irtmodel = "GPCM", pweights = w / mean(w), verbose = FALSE)
-irt_pars(fit_w1, fit = FALSE)$SE[1:2, ]                                           # after normalizing
+irt_pars(fit_w1, fit = FALSE)$se[1:2, ]                                           # after normalizing
 irt_pars(fit_mg, fit = FALSE)$group                                               # group means and variances
 fit_lr <- tam.mml.3pl(sc, E = tppcm(sc), Y = data.Students[, c("female", "urban")],
                       est.variance = FALSE, verbose = FALSE)
@@ -506,7 +551,7 @@ p_lr <- irt_pars(fit_lr, fit = FALSE)                                           
 | 情況 | 可用 | 不可用 |
 |---|---|---|
 | 權重 | 參數、SE、Wald、score test、MI | `m2()`、`dif_test()` |
-| 多群組 | 參數、SE（各組平均數與變異數是參數向量的一部分）、各種檢定、`dif_test()` | `m2()` |
+| 多群組 | 參數、SE（各組平均數與變異數是參數向量的一部分）、各種檢定、`dif_test()`、`dsf()`、`dsf_design()` | `m2()` |
 | 潛在迴歸 | 參數、SE（迴歸係數視為固定）、檢定、`dif_test()` | `m2()` |
 
-**參見**：`?get_parts`、D2。
+**參見**：`?get_parts`、D2、D5。

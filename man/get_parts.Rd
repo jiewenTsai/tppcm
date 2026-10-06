@@ -36,13 +36,13 @@ from the fitted item response functions, the posterior and the responses
 stored in the fit.
 }
 \details{
-Supported fits (the model is detected automatically):\tabular{ll}{
-   Fit \tab \code{model} \cr
-   \code{\link[TAM:tam.mml.3pl]{TAM::tam.mml.3pl()}} with \code{\link[=tppcm]{tppcm()}} \tab \code{"E"} (linear step design; fixed steps detected) \cr
-   \code{\link[TAM:tam.mml]{TAM::tam.mml.2pl()}}, \code{irtmodel = "2PL"} \tab \code{"tppcm"} (saturated TPPCM = NRM) \cr
-   \code{\link[TAM:tam.mml]{TAM::tam.mml.2pl()}}, \code{irtmodel = "GPCM"} \tab \code{"gpcm"} \cr
-   \code{\link[TAM:tam.mml]{TAM::tam.mml()}} \tab \code{"pcm"} (free latent variance) \cr
-   \code{\link[=xxirt_tppcm]{xxirt_tppcm()}} \tab \code{"tppcm"}, \code{"gpcm"}, \code{"rank1"} (product form) \cr
+Supported fits (the model is detected automatically):\tabular{lll}{
+   Fit \tab \code{model} \tab \code{formula} \cr
+   \code{\link[TAM:tam.mml.3pl]{TAM::tam.mml.3pl()}} with \code{\link[=tppcm]{tppcm()}} \tab \code{"E"} (linear step design; fixed steps detected) \tab detected from \code{E}: \code{~ 1}, \code{~ item}, \code{~ step}, \code{~ item * step}, or \code{NULL} (custom \code{index}) \cr
+   \code{\link[TAM:tam.mml]{TAM::tam.mml.2pl()}}, \code{irtmodel = "2PL"} \tab \code{"tppcm"} (saturated TPPCM = NRM) \tab \code{~ item * step} \cr
+   \code{\link[TAM:tam.mml]{TAM::tam.mml.2pl()}}, \code{irtmodel = "GPCM"} \tab \code{"gpcm"} \tab \code{~ item} \cr
+   \code{\link[TAM:tam.mml]{TAM::tam.mml()}} \tab \code{"pcm"} (free latent variance) \tab \code{~ 1} \cr
+   \code{\link[=xxirt_tppcm]{xxirt_tppcm()}} \tab \code{"tppcm"}, \code{"gpcm"}, \code{"rank1"} \tab its \code{design} \cr
 }
 
 
@@ -59,7 +59,8 @@ Components (\code{what}):\tabular{ll}{
    \code{"jacobian"}, \code{"curvature"} \tab Jacobian of the fitted model in the saturated space and its curvature term \cr
    \code{"posterior"}, \code{"nodes"}, \code{"prior"}, \code{"probs"} \tab posterior, quadrature nodes, latent distribution at the nodes, item response probabilities \cr
    \code{"data"}, \code{"nobs"}, \code{"loglik"}, \code{"npar"} \tab responses, number of persons, log-likelihood, number of parameters \cr
-   \code{"model"}, \code{"groups"}, \code{"design"} \tab model type, latent means and variances, design array \code{E} \cr
+   \code{"model"}, \code{"formula"} \tab type of fit, and its design formula (see \code{\link[=tppcm]{tppcm()}}; \code{NULL} for a custom design) \cr
+   \code{"groups"}, \code{"design"} \tab latent means and variances, design array \code{E} \cr
 }
 
 

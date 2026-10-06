@@ -2,80 +2,168 @@
 % Please edit documentation in R/dif.R
 \name{dif_test}
 \alias{dif_test}
-\title{Score-based DIF tests for steps, items or parameter blocks}
+\title{Score (LM) tests of differential step and item functioning}
 \usage{
 dif_test(
   x,
   covariate,
-  parm = "disc",
-  by = c("param", "item", "block"),
+  parm = c("disc", "diff"),
+  by = c("param", "step", "item", "block"),
   functional = NULL,
-  param = c("irt", "si")
+  param = c("irt", "si"),
+  info = c("robust", "louis", "opg"),
+  adjust = "holm"
 )
 }
 \arguments{
 \item{x}{A fitted model (see \code{\link[=get_parts]{get_parts()}}) or a \code{get_parts} object.}
 
 \item{covariate}{Person covariate in the order of the fitted responses
-(no missing values). A factor gives the LM test (\code{"LM"}), an ordered factor
-the weighted maximum LM test (\code{"maxLMo"}), a numeric covariate the
+(no missing values), usually the grouping of a multigroup fit. A factor
+(or character, logical) gives the LM test, an ordered factor the
+weighted maximum LM test (\code{"maxLMo"}), a numeric covariate the
 Cramer-von Mises type test (\code{"CvM"}).}
 
-\item{parm}{Parameters to test: \code{"disc"} / \code{"slope"} (slope block),
-\code{"diff"} / \code{"int"} (location block), \code{"all"}, or column names of
-\code{get_parts(fit, "estfun")}.}
+\item{parm}{Parameters to test: \code{c("disc", "diff")} (default, both
+blocks), \code{"disc"} (or \code{"slope"}; slope block), \code{"diff"} (or \code{"int"};
+location block), or column names of \code{get_parts(fit, "estfun")}
+(\code{get_parts(fit, "estfun.si")} with \code{param = "si"}). \code{"all"} is accepted
+for \code{c("disc", "diff")}.}
 
-\item{by}{Testing unit: every parameter (\code{"param"}), every item (\code{"item"})
-or all selected parameters together (\code{"block"}).}
+\item{by}{Testing unit: every parameter (\code{"param"}), every step (\code{"step"}:
+discrimination and location jointly, units named \code{"item:step"}; needs
+both blocks and a TPPCM step design), every item (\code{"item"}) or all
+selected parameters together (\code{"block"}).}
 
 \item{functional}{\code{NULL} (chosen from the covariate type), one of \code{"LM"},
 \code{"maxLMo"}, \code{"DM"}, \code{"CvM"}, \code{"maxLM"}, or a \pkg{strucchange}
-functional.}
+functional. Not used by the split LM test of multigroup fits.}
 
-\item{param}{\code{"irt"} (\code{disc}, \code{diff}) or \code{"si"} (\code{slope}, \code{int}).}
+\item{param}{Parameterization of the tested locations: \code{"irt"} (\code{disc},
+\code{diff}: kernel \code{disc * (theta - diff)}) or \code{"si"} (\code{slope}, \code{int}: kernel
+\code{slope * theta + int}). \code{by = "step"} does not depend on it.}
+
+\item{info}{Information used by the split LM test of multigroup fits:
+\code{"robust"} (default), \code{"louis"} or \code{"opg"}; see Details. Ignored
+otherwise.}
+
+\item{adjust}{Multiple-testing adjustment of \code{p_adj} over all rows, a method
+of \code{\link[stats:p.adjust]{stats::p.adjust()}} (\code{"none"} for none).}
 }
 \value{
-Data frame (class \code{tppcm_table}) with \code{unit}, \code{npar}, \code{statistic},
-\code{p} and Holm-adjusted \code{p_holm}, in the order of the items.
+Data frame (class \code{tppcm_table}) in the order of the items, with
+\code{unit} (parameter name, \code{"item:step"}, item name or \code{"all"}), \code{npar}
+(number of parameters tested), \code{statistic}, \code{df} (chi-square degrees of
+freedom of the LM tests, \code{npar * (levels - 1)}; \code{NA} for the other
+functionals), \code{p} and \code{p_adj}.
 }
 \description{
-Tests whether parameters of a single-group fit vary with a person
-covariate, without fitting a multiple-group model (Merkle & Zeileis, 2013;
-Strobl, Kopf & Zeileis, 2015). The case-wise scores (\code{get_parts(fit, "estfun")}) are
-ordered by the covariate and aggregated with a functional from
-\pkg{strucchange}. Fit the saturated TPPCM (\code{tam.mml.3pl(E = tppcm(dat))})
-to test single step discriminations; a GPCM fit gives item-level tests.
+Tests whether item parameters differ between groups, or vary with a person
+covariate, using only the fitted model (no refitting). The main use is the
+per-step DSF screen on a multigroup fit:
+
+\if{html}{\out{<div class="sourceCode">}}\preformatted{fit <- tam.mml.3pl(dat, E = tppcm(dat), group = g, est.variance = FALSE)
+dif_test(fit, g, by = "step")
+}\if{html}{\out{</div>}}
+
+which tests, for every category boundary, its discrimination (CBD) and
+location jointly across the groups: the Lagrange multiplier (score) test
+for DIF of Glas (1998), with 2 df per group contrast. The units of flagged
+steps (\code{"item:step"}) can be passed to \code{dsf(fit, items = )} as they are, to
+tell CBD from location DSF by likelihood ratio tests. See \link{tppcm-package}
+for the parameter names (CBD, CBL, IBD).
 }
 \details{
-Each tested unit is replaced by its efficient scores (residuals from the
-regression on all other parameters, outer-product information), so DIF in
-other parameters, e.g. in the difficulties, does not leak into the test.
+\strong{Multigroup fits (recommended).} Fit the model with the grouping
+(\code{tam.mml.3pl(..., group = g, est.variance = FALSE)}): the latent means and
+variances of groups 2, ..., G are then estimated and only item-level
+differences remain in the scores. For a factor covariate the test is the
+score test of the model in which the tested parameters are split by the
+levels of the covariate, with \code{npar * (levels - 1)} degrees of freedom.
+By default (\code{info = "robust"}) it is the generalized score test of Boos
+(1992): the observed (Louis) information of each level as the Hessian and
+the outer product of the case-wise scores in the middle, which keeps its
+level when the model does not fit exactly (as with most rating-scale data;
+Falk & Monroe, 2018; Guastadisegni et al., 2021). In simulations of
+per-step tests (two groups, 300 or 600 persons per group, with and without
+local dependence) the robust test kept its level in every condition; it is
+slightly conservative with 300 per group (about .03), and with the size
+equalized it was as powerful as the likelihood ratio test. \code{info = "louis"} (model-based) agrees closely with the likelihood ratio test
+without refitting and shares its slight excess of rejections in small
+samples; \code{info = "opg"} is liberal and is for comparison only.
+
+\strong{Which unit.} \code{by = "step"} is the screen: the joint test of a step has a
+clean null (the boundary is the same in all groups) and does not depend on
+the parameterization (CBD and CBL, or CBD and IBD, give the same
+statistic); it is computed in the slope-intercept form, so a step with
+discrimination near 0 keeps both degrees of freedom. With \code{by = "param"}
+the 1-df \code{disc} row of a step tests its CBD with its location (\code{diff}, the
+CBL) held equal across groups (with \code{param = "si"}: its intercept, the
+IBD), so location DSF leaks into it: in a simulation with 600 persons per
+group, a CBL shift of 0.5 in one step was flagged by its \code{disc} row in 16.5\%
+of the replications. Use \code{\link[=dsf]{dsf()}} to decompose a flagged step instead.
+\code{by = "item"} and \code{"block"} test all selected parameters of an item or of
+the test jointly.
 
 \strong{Impact is not DIF.} A single-group fit assumes one latent distribution
 for everybody. When the covariate is related to the latent trait (groups
 that differ in ability, a numeric covariate correlated with it), the scores
 of all parameters move with the covariate and most items are flagged. Fit
-the multigroup model (\code{tam.mml.3pl(..., group = )}) or the latent regression
-(\verb{Y = }) with that covariate first and test on that fit; the group means and
-variances (or regression coefficients) are then part of the model, and only
-item-level differences remain in the scores.
+the multigroup model (\verb{group = }) or the latent regression (\verb{Y = }) with
+that covariate first and test on that fit.
+
+\strong{Single-group fits and other covariates.} Without groups in the fit (or
+for a numeric or ordered covariate) the case-wise scores
+(\code{get_parts(fit, "estfun")}) are ordered by the covariate and aggregated
+with a functional from \pkg{strucchange} (Merkle & Zeileis, 2013; Strobl,
+Kopf & Zeileis, 2015). Each tested unit is replaced by its efficient scores
+(residuals from the regression on all other parameters, outer-product
+information), so DIF in the other parameters does not leak into the test.
 }
 \examples{
 \donttest{
 set.seed(1)
-a <- matrix(c(1, 1.5, 0.7), 5, 3, byrow = TRUE)
+a <- matrix(c(1, 1.5, 1.2), 5, 3, byrow = TRUE)
 b <- matrix(c(-1, 0, 1), 5, 3, byrow = TRUE)
-a2 <- a; a2[3, 2] <- 0.4                       # step DIF: item 3, step 2
-dat <- rbind(sim_tppcm(800, a, b), sim_tppcm(800, a2, b))
-g <- factor(rep(1:2, each = 800))
-fit <- tam.mml.3pl(dat, E = tppcm(dat), est.variance = FALSE, verbose = FALSE)
-dif_test(fit, g, parm = "disc")                # every step discrimination
-dif_test(fit, g, parm = "disc", by = "item")
-dif_test(fit, g, parm = "diff", by = "item")
+a2 <- a; a2[3, 2] <- 2.5                       # DSF in the CBD of item 3, step 2
+dat <- rbind(sim_tppcm(600, a, b),
+             sim_tppcm(600, a2, b, theta = rnorm(600, 0.3, 0.8)))   # impact
+g <- rep(c("ref", "foc"), each = 600)
+fit <- tam.mml.3pl(dat, E = tppcm(dat), group = g, est.variance = FALSE,
+                   verbose = FALSE)
+st <- dif_test(fit, g, by = "step")            # screen: every step, 2 df
+st
+st$unit[st$p_adj < 0.05]                       # flagged steps, e.g. for dsf()
+dif_test(fit, g, by = "item")                  # every item jointly
 }
 }
 \references{
-Merkle, E. C., & Zeileis, A. (2013). Tests of measurement
-invariance without subgroups: A generalization of classical methods.
+Boos, D. D. (1992). On generalized score tests. \emph{The American
+Statistician, 46}, 327-333.
+
+Falk, C. F., & Monroe, S. (2018). On Lagrange multiplier tests in
+multidimensional item response theory: Information matrices and model
+misspecification. \emph{Educational and Psychological Measurement, 78},
+653-678.
+
+Glas, C. A. W. (1998). Detection of differential item functioning using
+Lagrange multiplier tests. \emph{Statistica Sinica, 8}, 647-667.
+
+Guastadisegni, L., Cagnone, S., Moustaki, I., & Vasdekis, V. (2021). Use
+of the Lagrange multiplier test for assessing measurement invariance
+under model misspecification. \emph{Educational and Psychological
+Measurement}. \doi{10.1177/00131644211020355}
+
+Merkle, E. C., & Zeileis, A. (2013). Tests of measurement invariance
+without subgroups: A generalization of classical methods.
 \emph{Psychometrika, 78}, 59-82.
+
+Strobl, C., Kopf, J., & Zeileis, A. (2015). Rasch trees: A new method for
+detecting differential item functioning in the Rasch model.
+\emph{Psychometrika, 80}, 289-316.
+}
+\seealso{
+\code{\link[=dsf]{dsf()}} for likelihood ratio tests of single step parameters,
+\code{\link[=dsf_design]{dsf_design()}} for configural, metric and scalar models,
+\code{\link[=tppcmtree]{tppcmtree()}} for unknown groupings.
 }

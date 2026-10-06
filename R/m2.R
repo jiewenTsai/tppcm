@@ -60,14 +60,14 @@
 m2 <- function(x, type = c("auto", "M2", "C2", "M2*"), CI = 0.90) {
   type <- match.arg(type)
   x <- get_parts(x)
-  dat <- .info_data(x)
+  dat <- as.matrix(x$data)
   if (!is.null(x$groups) && nrow(x$groups) > 1) stop("m2() supports single-group fits only", call. = FALSE)
   if (isTRUE(x$weighted)) stop("m2() does not support person weights", call. = FALSE)
   if (isTRUE(x$latreg)) stop("m2() does not support latent regression", call. = FALSE)
   N <- nrow(dat); I <- ncol(dat); ncat <- x$ncat
   w <- x$weights
   mg <- .margins(ncat)
-  if (nrow(mg) > 5000) stop("too many margins (", nrow(mg), ") for m2()")
+  if (nrow(mg) > 5000) stop("too many margins (", nrow(mg), ") for m2(); at most 5000 (about 30 items with 4 categories)", call. = FALSE)
   obs <- .observed_margins(dat, mg)               # observed proportions and their scaling
   if (any(obs$n == 0)) {                          # pairs never observed together
     keep <- obs$n > 0
@@ -119,12 +119,6 @@ print.tppcm_m2 <- function(x, digits = 3, ...) {
 }
 
 # --- internals ---------------------------------------------------------------
-
-.info_data <- function(x) {
-  d <- x$data
-  if (is.null(d)) stop("the get_parts object has no data", call. = FALSE)
-  as.matrix(d)
-}
 
 # Univariate (i, k) and bivariate (i, k, j, l) margins, categories >= 1
 .margins <- function(ncat) {

@@ -30,8 +30,30 @@
   Q <- qr.Q(qr(J0))
   R <- J1 - Q %*% crossprod(Q, J1)
   keep <- sqrt(colSums(R^2)) > tol
-  if (!any(keep)) stop("the alternative adds no direction to the restricted model")
+  if (!any(keep)) stop("the alternative adds no direction to the restricted model", call. = FALSE)
   R <- R[, keep, drop = FALSE]
   qrR <- qr(R, tol = tol)
   R[, qrR$pivot[seq_len(qrR$rank)], drop = FALSE]
+}
+
+# Multiple-testing adjustment shared by all tables of tests: every table with
+# one row per test has the columns p and p_adj (stats::p.adjust() over all rows)
+# and names the method in its header.
+.check_adjust <- function(adjust) {
+  if (!is.character(adjust) || length(adjust) != 1 || !adjust %in% stats::p.adjust.methods)
+    stop("'adjust' must be one of ", paste0('"', stats::p.adjust.methods, '"', collapse = ", "),
+         " (see ?p.adjust)", call. = FALSE)
+  adjust
+}
+
+.add_p_adj <- function(out, adjust) {
+  if (!is.null(out) && nrow(out)) out$p_adj <- stats::p.adjust(out$p, adjust)
+  out
+}
+
+.adj_label <- function(adjust) {
+  lab <- c(holm = "Holm", hochberg = "Hochberg", hommel = "Hommel", bonferroni = "Bonferroni",
+           BH = "Benjamini-Hochberg", BY = "Benjamini-Yekutieli", fdr = "Benjamini-Hochberg",
+           none = "none (= p)")
+  paste("p_adj:", lab[[adjust]])
 }

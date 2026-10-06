@@ -52,14 +52,16 @@
 #' (Zeileis, Hothorn & Hornik, 2008), using [partykit::mob()]. With
 #' `parm = "disc"` (or `"slope"`) only instability of the slopes drives the
 #' splits; with `parm = "diff"` (or `"int"`) only instability of the step
-#' difficulties (intercepts); with `"all"` both.
+#' difficulties (intercepts); with `c("disc", "diff")` (default) both.
 #'
-#' Node models: `"tppcm"` (step discriminations), `"gpcm"` (item
-#' discriminations; compare [psychotree::gpcmtree()]) and `"pcm"` (one common
-#' slope; compare [psychotree::pctree()]). With the trait fixed at
-#' \eqn{N(0,1)}, the common slope of the PCM node plays the role of the latent
-#' standard deviation, so for `"pcm"` use `parm = "diff"` to look for DIF
-#' rather than for differences in trait variance.
+#' Node models are the linear designs of [tppcm()]: `~ item * step` (step
+#' discriminations), `~ item` (item discriminations, the GPCM; compare
+#' [psychotree::gpcmtree()]), `~ step` (one discrimination per step, common to
+#' the items) and `~ 1` (one common slope; compare [psychotree::pctree()]).
+#' With the trait fixed at \eqn{N(0,1)}, the common slope of the `~ 1` node
+#' plays the role of the latent standard deviation, so for `~ 1` use
+#' `parm = "diff"` to look for DIF rather than for differences in trait
+#' variance.
 #'
 #' **Impact is not DIF.** The latent trait is \eqn{N(0,1)} in every node, so a
 #' covariate related to ability (groups that differ in their mean) is split on
@@ -82,9 +84,11 @@
 #' @param impact `NULL`, or the name of a factor in `data` (or a factor of
 #'   length `nrow(data)`) whose latent means and variances are estimated in
 #'   every node.
-#' @param model Node model: `"tppcm"`, `"gpcm"` or `"pcm"`.
-#' @param parm Parameters used in the instability tests: `"all"`, the slope
-#'   block (`"disc"` or `"slope"`) or the location block (`"diff"` or `"int"`).
+#' @param design Node model, a linear design formula of [tppcm()]:
+#'   `~ item * step` (default), `~ item`, `~ step` or `~ 1`.
+#' @param parm Parameters used in the instability tests: `c("disc", "diff")`
+#'   (default, both blocks), the slope block (`"disc"` or `"slope"`) or the
+#'   location block (`"diff"` or `"int"`). (`"all"` is accepted for both.)
 #' @param param Parameterization of the scores: `"irt"` (`disc`, `diff`) or
 #'   `"si"` (`slope`, `int`); see `get_parts(fit, "estfun")`.
 #' @param orthogonal For a slope (location) block test: replace the tested
@@ -102,16 +106,26 @@
 #' \donttest{
 #' data("VerbalAggression", package = "psychotools")
 #' tr <- tppcmtree(resp ~ gender + anger, data = VerbalAggression,
-#'                 model = "pcm", parm = "diff", minsize = 50)
+#'                 design = ~ 1, parm = "diff", minsize = 50)
 #' tr
 #' head(t(coef(tr)))
 #' }
 #' @export
-tppcmtree <- function(formula, data, model = c("tppcm", "gpcm", "pcm"),
-                      parm = c("all", "disc", "diff", "slope", "int"),
+tppcmtree <- function(formula, data, design = ~ item * step,
+                      parm = c("disc", "diff"),
                       param = c("irt", "si"), orthogonal = TRUE, impact = NULL, ...) {
   if (!requireNamespace("partykit", quietly = TRUE)) stop("tppcmtree() needs the partykit package", call. = FALSE)
-  model <- match.arg(model); parm <- match.arg(parm); param <- match.arg(param)
+  if (is.character(list(...)$model))   # would otherwise reach mob_control(model = )
+    stop("tppcmtree() has no 'model' argument; give the node model as design = ~ item * step, ",
+         "~ item, ~ step or ~ 1", call. = FALSE)
+  model <- .parse_design(design); param <- match.arg(param)
+  if (model == "rank1")
+    stop("design = ~ item + step (Rank-1) cannot be fitted with TAM in the nodes; ",
+         "use ~ item * step, ~ item, ~ step or ~ 1", call. = FALSE)
+  block <- .parm_block(parm)
+  if (is.null(block) || length(block) != 1)
+    stop('parm must be c("disc", "diff"), "disc" (or "slope") or "diff" (or "int")', call. = FALSE)
+  parm <- c(slope = "disc", location = "diff", all = "disc+diff")[[block]]
   vars <- all.vars(formula); resp_name <- vars[1]
   y <- data[[resp_name]]
   if (is.data.frame(y)) y <- as.matrix(y)
@@ -133,8 +147,7 @@ tppcmtree <- function(formula, data, model = c("tppcm", "gpcm", "pcm"),
   items <- colnames(y)
   if (is.null(items)) items <- paste0("I", seq_len(ncol(y)))
   I <- ncol(y); nsteps <- sum(K - 1)
-  n_slope <- switch(model, tppcm = nsteps, gpcm = I, pcm = 1)
-  block <- switch(parm, all = "all", disc = , slope = "slope", diff = , int = "location")
+  n_slope <- switch(model, tppcm = nsteps, gpcm = I, step = max(K) - 1, pcm = 1)
   parm_idx <- switch(block, all = NULL, slope = seq_len(n_slope), location = n_slope + seq_len(nsteps))
   if (!is.null(impact)) {
     g <- if (is.character(impact) && length(impact) == 1) data[[impact]] else impact
@@ -160,10 +173,10 @@ tppcmtree <- function(formula, data, model = c("tppcm", "gpcm", "pcm"),
     miss <- which(apply(y, 2, function(v) length(unique(stats::na.omit(v)))) < K)   # K per item
     if (length(miss)) stop("not all categories observed for item(s) ",
                            paste(colnames(y)[miss], collapse = ", "),
-                           " in a node; increase minsize (e.g. minsize = 100) or use model = \"pcm\"",
+                           " in a node; increase minsize (e.g. minsize = 100) or use design = ~ 1",
                            call. = FALSE)
     if (!is.null(group) && length(unique(group)) == 1) group <- NULL
-    fit <- TAM::tam.mml.3pl(y, E = step_design(y, model, K = K), group = group,
+    fit <- TAM::tam.mml.3pl(y, E = .design_array(y, model, K = K), group = group,
                             est.variance = FALSE, verbose = FALSE)
     info <- get_parts(fit)
     S <- .step_scores(info, param)
@@ -187,7 +200,7 @@ tppcmtree <- function(formula, data, model = c("tppcm", "gpcm", "pcm"),
   n_impact <- if (is.null(impact)) 0 else length(unique(y[, ncol(y)]))
   ctrl <- partykit::mob_control(parm = parm_idx, ytype = "matrix", ...)
   tr <- partykit::mob(formula, data = data, fit = fitter, control = ctrl)
-  tr$info$tppcm <- list(model = model, parm = parm, param = param,
+  tr$info$tppcm <- list(design = .design_codes[[model]], parm = parm, param = param,
                         impact = if (is.character(impact)) impact else if (!is.null(impact)) "(vector)")
   class(tr) <- c("tppcmtree", class(tr))
   tr
@@ -196,8 +209,8 @@ tppcmtree <- function(formula, data, model = c("tppcm", "gpcm", "pcm"),
 #' @export
 print.tppcmtree <- function(x, ...) {
   tp <- x$info$tppcm
-  cat(sprintf("TPPCM tree | node model: %s | splits driven by: %s (%s parameterization)%s\n",
-              tp$model, tp$parm, tp$param,
+  cat(sprintf("TPPCM tree | node design: %s | splits driven by: %s (%s parameterization)%s\n",
+              tp$design, tp$parm, tp$param,
               if (is.null(tp$impact)) "" else sprintf(" | impact: %s", tp$impact)))
   cat(sprintf("Formula: %s\n", deparse(x$info$formula)))
   NextMethod(FUN = function(info) sprintf(": n = %d, -logLik = %.1f", info$nobs, info$objfun),
@@ -211,8 +224,6 @@ print.tppcmtree <- function(x, ...) {
 .orthogonalize <- function(S, block, orthogonal) {
   if (!orthogonal || block == "all") return(S)
   test <- attr(S, "block") == block
-  Iob <- crossprod(S[, !test, drop = FALSE])
-  Iot <- crossprod(S[, !test, drop = FALSE], S[, test, drop = FALSE])
-  S[, test] <- S[, test, drop = FALSE] - S[, !test, drop = FALSE] %*% solve(Iob, Iot)
+  S[, test] <- .resid_span(S[, test, drop = FALSE], S[, !test, drop = FALSE])
   S
 }

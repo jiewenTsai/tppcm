@@ -27,11 +27,14 @@
 #' Against the saturated model \eqn{S = g'I^{-1}g}.
 #'
 #' @param x A fitted model (see [get_parts()]) or a `get_parts` object.
-#' @param against Alternative model; must contain the model of `x`.
-#'   `"tppcm"` (saturated), `"rank1"` (product form \eqn{\alpha_i\gamma_l}),
-#'   `"gpcm"` (\eqn{\alpha_i}) or `"step"` (\eqn{\gamma_l}, shared by items).
-#'   The models form a lattice: pcm is contained in gpcm and step, both are
-#'   contained in rank1, and rank1 in tppcm.
+#' @param against Alternative model as a design formula (see [tppcm()]); must
+#'   contain the model of `x`: `~ item * step` (default, saturated),
+#'   `~ item + step` (Rank-1, \eqn{\alpha_i\gamma_l}), `~ item` (GPCM,
+#'   \eqn{\alpha_i}) or `~ step` (\eqn{\gamma_l}, shared by items). The
+#'   models form a hierarchy: `~ 1` is contained in `~ item` and `~ step`,
+#'   both are contained in `~ item + step`, and that in `~ item * step`. Thus
+#'   the GPCM against `~ item + step` tests for a step effect, Rank-1 against
+#'   `~ item * step` for an item x step interaction.
 #' @param D Optional matrix of extra directions in the saturated space
 #'   (rows as in `x$parindex`); overrides `against`.
 #' @param info `"louis"` (observed information) or `"opg"`.
@@ -43,28 +46,28 @@
 #'                  diff = matrix(c(-1, 0, 1), 4, 3, byrow = TRUE))
 #' fit <- tam.mml.2pl(dat, irtmodel = "GPCM", verbose = FALSE)
 #' score_test(fit)                   # GPCM vs saturated TPPCM
-#' score_test(fit, against = "rank1")   # GPCM vs product form
+#' score_test(fit, against = ~ item + step)   # GPCM vs Rank-1: step effect?
 #' item_test(fit)
 #' mi(fit)
 #' }
 #' @export
-score_test <- function(x, against = c("tppcm", "rank1", "gpcm", "step"), D = NULL,
-                       info = c("louis", "opg")) {
+score_test <- function(x, against = ~ item * step, D = NULL, info = c("louis", "opg")) {
   info <- match.arg(info)
   x <- get_parts(x)
   if (is.null(D)) {
-    against <- match.arg(against)
+    against <- .parse_design(against, "against")
     if (against == "rank1" && length(unique(x$ncat)) > 1)
-      stop("the product form ('rank1') needs the same number of categories in every item",
+      stop("Rank-1 (against = ~ item + step) needs the same number of categories in every item",
            call. = FALSE)
     Jalt <- .pad_rows(.jacobian(against, x$parindex, x$par), nrow(x$J))
     rownames(Jalt) <- rownames(x$J)
     if (qr(cbind(Jalt, x$J[, setdiff(colnames(x$J), x$gnames), drop = FALSE]))$rank > qr(Jalt)$rank)
-      stop("the '", against, "' model does not contain the fitted model (", .label(x),
-           "); 'against' must be a larger model (pcm < gpcm, step < rank1 < tppcm)", call. = FALSE)
+      stop("the model ", .design_codes[[against]], " does not contain the fitted model (", .label(x),
+           "); 'against' must be a larger model (~ 1 < ~ item, ~ step < ~ item + step < ~ item * step)",
+           call. = FALSE)
     D <- tryCatch(.extra_dirs(x$J, Jalt), error = function(e)
-      stop("the fitted model (", .label(x), ") already contains the '", against,
-           "' model; nothing to test", call. = FALSE))
+      stop("the fitted model (", .label(x), ") already contains the model ", .design_codes[[against]],
+           "; nothing to test", call. = FALSE))
   } else against <- "user-defined directions"
   st <- .score_stat(x, D, info)
   structure(list(statistic = st$stat, df = st$df, p.value = st$p, epc = st$epc,
@@ -72,11 +75,15 @@ score_test <- function(x, against = c("tppcm", "rank1", "gpcm", "step"), D = NUL
             class = "tppcm_test")
 }
 
+# "the saturated TPPCM (~ item * step)", ...
+.against_label <- stats::setNames(paste0("the ", .design_names, " (", .design_codes, ")"), names(.design_codes))
+
 #' @export
 print.tppcm_test <- function(x, digits = 4, ...) {
-  cat(sprintf("Score test (%s information): %s vs %s\n",
+  against <- if (x$against %in% names(.against_label)) .against_label[[x$against]] else x$against
+  cat(sprintf("Score test (%s information) of the fitted %s against %s\n",
               if (identical(x$info, "opg")) "OPG" else "Louis",
-              if (is.null(x$label)) x$model else x$label, x$against))
+              if (is.null(x$label)) x$model else x$label, against))
   cat(sprintf("  S = %.*f, df = %d, p = %s\n", digits, x$statistic, x$df,
               format.pval(x$p.value, digits = digits)))
   invisible(x)
@@ -95,8 +102,11 @@ print.tppcm_test <- function(x, digits = 4, ...) {
 #'
 #' @inheritParams score_test
 #' @param pars Names of step discriminations (default: all, e.g. `"I1_disc2"`).
-#' @return Data frame (class `tppcm_table`) with `par`, `MI`, `df`, `p`, `EPC`
-#'   (expected change of the step discrimination), sorted by `MI`.
+#' @param adjust Multiple-testing adjustment of `p_adj` over all rows, a method
+#'   of [stats::p.adjust()] (`"none"` for none).
+#' @return Data frame (class `tppcm_table`) with `par`, `MI`, `df`, `p`,
+#'   `p_adj`, `EPC` (expected change of the step discrimination), sorted by
+#'   `MI`.
 #' @examples
 #' \donttest{
 #' data(data.Students, package = "CDM")
@@ -106,15 +116,16 @@ print.tppcm_test <- function(x, digits = 4, ...) {
 #' mi(fit, pars = c("sc1_disc3", "sc2_disc3"))
 #' }
 #' @export
-mi <- function(x, pars = NULL, info = c("louis", "opg")) {
-  info <- match.arg(info)
+mi <- function(x, pars = NULL, info = c("louis", "opg"), adjust = "holm") {
+  info <- match.arg(info); adjust <- .check_adjust(adjust)
   x <- get_parts(x)
   pidx <- x$parindex
   disc_names <- .disc_name(pidx$name)
   if (is.null(pars)) pars <- disc_names[pidx$type == "a"]
   idx <- match(pars, disc_names)
   idx[is.na(idx)] <- match(pars[is.na(idx)], pidx$name)            # internal names also accepted
-  if (anyNA(idx)) stop("unknown step discriminations: ", paste(pars[is.na(idx)], collapse = ", "))
+  if (anyNA(idx)) stop("unknown step discrimination(s): ", paste(pars[is.na(idx)], collapse = ", "),
+                       "; use names such as \"", disc_names[pidx$type == "a"][1], "\"", call. = FALSE)
   Q <- qr.Q(qr(x$J))
   out <- do.call(rbind, lapply(idx, function(j) {
     nm <- disc_names[j]
@@ -126,9 +137,11 @@ mi <- function(x, pars = NULL, info = c("louis", "opg")) {
   }))
   if (is.null(out)) return(.as_table(NULL, "Modification indices for step discriminations",
                                       empty = "all step discriminations are already free in the fitted model"))
+  out <- .add_p_adj(out, adjust)[, c("par", "MI", "df", "p", "p_adj", "EPC")]
   out <- out[order(-out$MI), ]
   rownames(out) <- NULL
-  .as_table(out, sprintf("Modification indices for step discriminations (%s)", .label(x)))
+  .as_table(out, sprintf("Modification indices (1-df score tests) for freeing single step discriminations of the fitted %s | %s",
+                         .label(x), .adj_label(adjust)))
 }
 
 #' Item-level score tests
@@ -136,8 +149,9 @@ mi <- function(x, pars = NULL, info = c("louis", "opg")) {
 #' For each item, the score test for freeing all of its step discriminations
 #' relative to the model of `x` (e.g. whether the item deviates from the GPCM).
 #'
-#' @inheritParams score_test
-#' @return Data frame (class `tppcm_table`) with `item`, `statistic`, `df`, `p`.
+#' @inheritParams mi
+#' @return Data frame (class `tppcm_table`) with `item`, `statistic`, `df`,
+#'   `p`, `p_adj`.
 #' @examples
 #' \donttest{
 #' data(data.Students, package = "CDM")
@@ -146,8 +160,8 @@ mi <- function(x, pars = NULL, info = c("louis", "opg")) {
 #' item_test(fit)                           # which items deviate from the GPCM
 #' }
 #' @export
-item_test <- function(x, info = c("louis", "opg")) {
-  info <- match.arg(info)
+item_test <- function(x, info = c("louis", "opg"), adjust = "holm") {
+  info <- match.arg(info); adjust <- .check_adjust(adjust)
   x <- get_parts(x)
   pidx <- x$parindex
   out <- do.call(rbind, lapply(unique(pidx$item), function(it) {
@@ -158,7 +172,9 @@ item_test <- function(x, info = c("louis", "opg")) {
     st <- .score_stat(x, D, info)
     data.frame(item = it, statistic = st$stat, df = st$df, p = st$p)
   }))
-  .as_table(out, sprintf("Score tests for freeing the step discriminations of each item (%s)", .label(x)),
+  .as_table(.add_p_adj(out, adjust),
+            sprintf("Score tests for freeing the step discriminations of each item in the fitted %s | %s",
+                    .label(x), .adj_label(adjust)),
             empty = "all step discriminations are already free in the fitted model")
 }
 
@@ -170,7 +186,9 @@ item_test <- function(x, info = c("louis", "opg")) {
 #'
 #' @param x A fitted model (see [get_parts()]) or a `get_parts` object in
 #'   which the tested steps are free.
-#' @return Data frame (class `tppcm_table`) with `item`, `statistic`, `df`, `p`.
+#' @inheritParams mi
+#' @return Data frame (class `tppcm_table`) with `item`, `statistic`, `df`,
+#'   `p`, `p_adj`.
 #' @examples
 #' \donttest{
 #' data(data.Students, package = "CDM")
@@ -179,7 +197,8 @@ item_test <- function(x, info = c("louis", "opg")) {
 #' wald_test(fit)                           # a_i1 = a_i2 = a_i3 for each item?
 #' }
 #' @export
-wald_test <- function(x) {
+wald_test <- function(x, adjust = "holm") {
+  adjust <- .check_adjust(adjust)
   x <- get_parts(x)
   pidx <- x$parindex
   out <- do.call(rbind, lapply(unique(pidx$item), function(it) {
@@ -191,6 +210,8 @@ wald_test <- function(x) {
     w <- CDM::WaldTest(delta = x$par, vcov = x$vcov_sat, R = R, nobs = x$nobs)
     data.frame(item = it, statistic = w$X2, df = w$df, p = w$p)
   }))
-  .as_table(out, "Wald tests of equal step discriminations within items",
-            empty = "no item has free step discriminations; fit the saturated TPPCM, e.g. tppcm(dat)")
+  .as_table(.add_p_adj(out, adjust),
+            sprintf("Wald tests of equal step discriminations within items (H0: the item follows the GPCM) | %s",
+                    .adj_label(adjust)),
+            empty = "no item has free step discriminations; fit the saturated TPPCM, e.g. E = tppcm(dat)")
 }

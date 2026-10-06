@@ -4,8 +4,8 @@
 [![R-CMD-check](https://github.com/jiewenTsai/tppcm/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/jiewenTsai/tppcm/actions/workflows/R-CMD-check.yaml)
 <!-- badges: end -->
 
-Step discriminations for the two-parameter partial credit model (TPPCM;
-Yu, 1991), built on top of **TAM**.
+Boundary-level diagnostics for the two-parameter partial credit model
+(TPPCM; Yu, 1991), built on top of **TAM**.
 
 In the TPPCM every step *l* of item *i* has its own discrimination
 *a<sub>il</sub>*:
@@ -17,8 +17,10 @@ with equal steps within items, and the partial credit model (PCM; Masters,
 1982) has one common discrimination.
 
 Estimation stays in TAM (and in sirt for the product form). tppcm takes the
-fitted object and adds standard errors, tests, fit statistics and DIF tools
-for step discriminations.
+fitted object and adds what TAM does not report at the level of category
+boundaries: step discriminations (CBD), locations (CBL) and intercepts (IBD)
+with standard errors, tests between models, fit statistics, step information
+and tests of differential step functioning (DSF) across groups.
 
 ## Installation
 
@@ -29,9 +31,13 @@ remotes::install_github("jiewenTsai/tppcm", build_vignettes = TRUE)
 
 ## Features
 
-* **Step designs for TAM.** `tppcm()` builds the design array for
-  `tam.mml.3pl()`: saturated TPPCM, GPCM, steps-only, PCM, or any
-  equality pattern via `index`.
+* **Step designs for TAM.** `tppcm(dat, design = )` builds the design array
+  for `tam.mml.3pl()`. The design formula reads the step discriminations as
+  an item x step layout on the log scale: `~ item * step` (saturated TPPCM,
+  default), `~ item` (GPCM), `~ step` (steps common to the items), `~ 1`
+  (PCM); `~ item + step` (Rank-1, a<sub>il</sub> = α<sub>i</sub>
+  γ<sub>l</sub>) is fitted with `xxirt_tppcm()`. Any other equality pattern
+  goes through `index`.
 * **Parameter table.** `irt_pars()` prints step discriminations and
   difficulties with standard errors and a model-fit header.
 * **Model fit.** `m2()` gives limited-information fit statistics (M2, RMSEA,
@@ -41,11 +47,16 @@ remotes::install_github("jiewenTsai/tppcm", build_vignettes = TRUE)
 * **Tests between models.** `wald_test()` tests equal steps within an item.
   `score_test()`, `item_test()` and `mi()` test a fitted model against a
   larger one without fitting it.
-* **Product form.** `xxirt_tppcm()` fits a<sub>il</sub> = α<sub>i</sub>
-  γ<sub>l</sub> and non-negativity bounds through `sirt::xxirt()`.
-* **DIF.** `dif_test()` gives score-based DIF tests per step, item or block,
-  and `tppcmtree()` grows model-based DIF trees. Both treat discriminations
-  and difficulties separately.
+* **Rank-1.** `xxirt_tppcm(dat, design = ~ item + step)` fits
+  a<sub>il</sub> = α<sub>i</sub> γ<sub>l</sub> and non-negativity bounds
+  through `sirt::xxirt()`.
+* **Differential step functioning.** On a multigroup fit,
+  `dif_test(fit, g, by = "step")` screens every category boundary with a
+  joint score (LM) test; `dsf()` decomposes flagged steps into CBD and
+  location differences by likelihood ratio tests; `dsf_design()` builds
+  configural, metric, scalar and partial multigroup models (lavaan-style
+  `group.equal` / `group.partial`). `tppcmtree()` grows DIF trees when the
+  grouping is unknown. Tables of tests report Holm-adjusted `p_adj`.
 * **Components.** `get_parts()` extracts the quantities behind these
   functions (scores, information, Jacobian, posterior and more).
 * **Simulation.** `sim_tppcm()` generates responses from a TPPCM.
@@ -77,13 +88,18 @@ score_test(sp)
 item_test(sp)
 mi(sp)
 
-# 4. Product form
-m_rank1 <- xxirt_tppcm(dat, "rank1")
+# 4. Rank-1: is there a step effect, an item x step interaction?
+score_test(sp, against = ~ item + step)        # GPCM vs Rank-1
+m_rank1 <- xxirt_tppcm(dat, design = ~ item + step)
 irt_pars(m_rank1, restricted = TRUE)
+score_test(m_rank1)                            # Rank-1 vs saturated
 
-# 5. DIF on step discriminations
-group <- rep(c("A", "B"), each = 500)
-dif_test(get_parts(m_tppcm), group, parm = "disc")
+# 5. Differential step functioning between two groups
+g <- rep(c("A", "B"), each = 500)
+m_mg <- tam.mml.3pl(dat, E = tppcm(dat), group = g, est.variance = FALSE, verbose = FALSE)
+st <- dif_test(m_mg, g, by = "step")           # screen every step (2 df)
+flagged <- st$unit[st$p_adj < 0.05]
+if (length(flagged)) dsf(m_mg, items = flagged) # CBD vs location of flagged steps
 ```
 
 ## Documentation

@@ -20,8 +20,8 @@ This vignette shows how to analyze step discriminations of polytomous items with
 2. estimating the TPPCM with TAM;
 3. parameter reports, standard errors, model fit and information;
 4. tests: are the step discriminations equal, where does the GPCM fail;
-5. the product form;
-6. DIF in step discriminations and step difficulties (score-based tests, DIF trees);
+5. Rank-1, the product form `~ item + step`;
+6. differential step functioning (DSF) across groups: score-test screen, likelihood ratio tests, configural/metric/scalar models, DIF trees;
 7. `get_parts()`: the mathematical components;
 8. a suggested workflow and caveats.
 
@@ -41,36 +41,43 @@ $$
 
 The package labels parameters with words to avoid the clash of symbols between references and programs:
 
-| Form | Name in tppcm | Elsewhere |
-|---|---|---|
-| IRT form $a(\theta - b)$ | `disc` (step discrimination $a_{il}$), `diff` (step difficulty $b_{il}$) | Masters' $\delta_{il}$; TAM `beta + tau` (`xsi` for the PCM); mirt `b` with `IRTpars = TRUE`; psychotools `threshpar()` |
-| Slope–intercept form $a\theta + c$ | `slope`, `int` (step intercept $c_{il}$) | cumulated over steps they equal the category intercepts `d_k` of mirt and psychotools, that is TAM's `-AXsi_` |
-
-Note that `d` in mirt and psychotools is the intercept cumulated up to the category, not the step difficulty.
-
-The common polytomous models are special cases:
-
-| Model | Step discriminations | Slope parameters | `tppcm(dat, model = )` |
+| Form | Name in tppcm | Category boundary name | Elsewhere |
 |---|---|---|---|
-| Saturated TPPCM | $a_{il}$ free | $IL$ | `"tppcm"` (default) |
-| Product form (rank 1) | $a_{il} = \alpha_i \gamma_l$, $\gamma_1 = 1$ | $I + L - 1$ | `xxirt_tppcm(dat, "rank1")` |
-| GPCM | $a_{il} = \alpha_i$ (differs between items) | $I$ | `"gpcm"` |
-| Step model | $a_{il} = \gamma_l$ (differs between steps, shared by items) | $L$ | `"step"` |
-| PCM | $a_{il} = a$ (all equal) | $1$ | `"pcm"` |
+| IRT form $a(\theta - b)$ | `disc` (step discrimination $a_{il}$), `diff` (step difficulty $b_{il}$) | CBD, CBL | Masters' $\delta_{il}$; TAM `beta + tau` (`xsi` for the PCM); mirt `b` with `IRTpars = TRUE`; psychotools `threshpar()` |
+| Slope–intercept form $a\theta + c$ | `slope`, `int` (step intercept $c_{il}$) | CBD, IBD | cumulated over steps they equal the category intercepts `d_k` of mirt and psychotools, that is TAM's `-AXsi_` |
 
-They form a lattice, not a single ladder:
+Note that `d` in mirt and psychotools is the intercept cumulated up to the category, not the step difficulty. The third column gives the names of the category boundary literature (Preston et al., 2011), which the DSF functions use: CBD (category boundary discrimination) $= a_{il}$, CBL (category boundary location) $= b_{il}$, IBD (intercept boundary difference) $= c_{il} = -a_{il}b_{il}$. The mapping is documented once in `?tppcm-package`.
+
+The common polytomous models are special cases. The package describes them with a formula for the step discriminations, read as a two-way **item × step layout on the log scale**, like a two-way ANOVA:
+
+$$
+\log a_{il} = \mu + \alpha_i + \gamma_l + (\alpha\gamma)_{il}.
+$$
+
+| `design =` | Model | Step discriminations | Slope parameters | Shape of the steps |
+|---|---|---|---|---|
+| `~ item * step` (default) | Saturated TPPCM | $a_{il}$ free | $IL$ | item-specific (item × step interaction) |
+| `~ item + step` | Rank-1 (product form) | $a_{il} = \alpha_i \gamma_l$, $\gamma_1 = 1$ | $I + L - 1$ | the same for all items, item-specific level |
+| `~ item` | GPCM | $a_{il} = \alpha_i$ | $I$ | flat, item-specific level |
+| `~ step` | Step model | $a_{il} = \gamma_l$ (shared by items) | $L$ | the same shape and level for all items |
+| `~ 1` | PCM | $a_{il} = a$ | $1$ | flat, the same for all items |
+
+`~ item:step` and `~ item + step + item:step` are the same model as `~ item * step`. The models form a hierarchy, not a single ladder:
 
 ```
-            tppcm   a_il (default)
-             |
-            rank1   a_il = alpha_i gamma_l
-          /    \
-  gpcm (alpha_i)   step (gamma_l)
-          \    /
-            pcm     a_il = a
+        ~ item * step     a_il                (interaction: items differ in shape)
+              |
+        ~ item + step     a_il = alpha_i gamma_l   (main effects: same shape)
+          /        \
+   ~ item           ~ step
+   (alpha_i)        (gamma_l)
+          \        /
+             ~ 1          a_il = a
 ```
 
-The GPCM lets items differ, the step model lets steps differ, the product form allows both. With the latent variance fixed at 1, "one common $a$" is the same model as the usual PCM with $a = 1$ and a free variance.
+The interaction means that items differ in the *shape* of their step discriminations: the ratios $a_{il}/a_{il'}$ differ between items. Rank-1 keeps one shape $\gamma_l$ and lets items differ only in level $\alpha_i$; the GPCM has a flat shape; `~ step` has the same shape and level for all items. So the score test of the GPCM against `~ item + step` asks whether there is a step effect, and the test of Rank-1 against `~ item * step` whether there is an item × step interaction (Section 4). Rank-1 is multiplicative and cannot be written as a linear design for TAM: `tppcm(dat, design = ~ item + step)` stops and points to `xxirt_tppcm()` (Section 5). For the four linear models the log scale does not matter. It does presume $a_{il} > 0$: Yu (1991) restricted the step discriminations to be positive; TAM does not impose it (`xxirt_tppcm()` does).
+
+The same item × step language describes the locations in TAM's and ConQuest's facet formulas: `formulaA = ~ item + step` is the rating scale model (step parameters common to all items) and `~ item + item:step` the partial credit model. `design = ~ step` is the rating-scale idea applied to the discriminations. With the latent variance fixed at 1, "one common $a$" (`~ 1`) is the same model as the usual PCM with $a = 1$ and a free variance.
 
 The saturated TPPCM is a reparameterization of the nominal response model (NRM; Bock, 1972): adjacent differences of the NRM category slopes are the step discriminations. The saturated model therefore needs no new estimator. The value of the TPPCM parameterization is that every restriction in the table can be written down and tested directly.
 
@@ -85,12 +92,13 @@ tppcm adds what TAM lacks:
 
 | Function | Purpose |
 |---|---|
-| `tppcm()` (alias `step_design()`) | the step design for `tam.mml.3pl()`: the core of the package |
+| `tppcm()` | the step design for `tam.mml.3pl()` (`design = ~ item * step` and its submodels): the core of the package |
 | `irt_pars()` | mirt-style compact parameter table with correct SEs and a fit header; `long = TRUE` for a long table with confidence intervals |
 | `m2()` | limited-information fit: M2, RMSEA2, SRMSR, CFI, TLI |
 | `wald_test()` | per-item Wald test of equal step discriminations |
 | `score_test()`, `item_test()`, `mi()` | score tests, per-item tests, modification indices with EPCs |
-| `dif_test()` | score-based DIF tests per step, item or block of parameters |
+| `dif_test()` | score (LM) tests of DSF/DIF per parameter, step, item or block, from one fit |
+| `dsf()`, `dsf_design()` | likelihood ratio tests of single step parameters across groups; configural, metric, scalar and partial multigroup models for TAM |
 | `tppcmtree()` | DIF trees |
 | `step_info()` | step, item and test information |
 | `get_parts()` | the mathematical components behind all of the above (like `lme4::getME()`, `lavaan::lavInspect()`) |
@@ -115,7 +123,7 @@ sapply(sc, table, useNA = "ifany")
 
 ## The saturated TPPCM
 
-`tppcm(dat)` returns the design array `E` for `tam.mml.3pl()`; the slope parameters `gammaslope` are then exactly $a_{il}$ (`tppcm()` and `step_design()` are the same function). The latent distribution has to be fixed at $N(0,1)$ to identify the scale, so `est.variance = FALSE` is required.
+`tppcm(dat)` returns the design array `E` for `tam.mml.3pl()`; the slope parameters `gammaslope` are then exactly $a_{il}$. The latent distribution has to be fixed at $N(0,1)$ to identify the scale, so `est.variance = FALSE` is required.
 
 ```{r fit-tppcm}
 m_tppcm <- tam.mml.3pl(sc, E = tppcm(sc), est.variance = FALSE, verbose = FALSE)
@@ -131,17 +139,17 @@ c(TPPCM = logLik(m_tppcm), NRM = logLik(m_nrm))
 
 ## The common designs
 
-`model` gives the four designs of the lattice in Section 1:
+`design` gives the four linear models of the hierarchy in Section 1:
 
 ```{r fit-models}
-m_gpcmE <- tam.mml.3pl(sc, E = tppcm(sc, "gpcm"), est.variance = FALSE, verbose = FALSE)
-m_step  <- tam.mml.3pl(sc, E = tppcm(sc, "step"), est.variance = FALSE, verbose = FALSE)
-m_pcmE  <- tam.mml.3pl(sc, E = tppcm(sc, "pcm"),  est.variance = FALSE, verbose = FALSE)
-attr(tppcm(sc, "step"), "index")     # one parameter per column (step)
+m_gpcmE <- tam.mml.3pl(sc, E = tppcm(sc, design = ~ item), est.variance = FALSE, verbose = FALSE)
+m_step  <- tam.mml.3pl(sc, E = tppcm(sc, design = ~ step), est.variance = FALSE, verbose = FALSE)
+m_pcmE  <- tam.mml.3pl(sc, E = tppcm(sc, design = ~ 1),  est.variance = FALSE, verbose = FALSE)
+attr(tppcm(sc, design = ~ step), "index")     # one parameter per column (step)
 m_step$gammaslope                    # gamma_1, gamma_2, gamma_3
 ```
 
-The common slope of `"pcm"` equals the latent standard deviation of TAM's own PCM; the log-likelihoods differ only through numerical integration (see the box below):
+The common slope of `~ 1` equals the latent standard deviation of TAM's own PCM; the log-likelihoods differ only through numerical integration (see the box below):
 
 ```{r pcm-equiv}
 m_pcm <- tam.mml(sc, verbose = FALSE)
@@ -178,7 +186,7 @@ m_fix <- tam.mml.3pl(sc, E = tppcm(sc), est.variance = FALSE, verbose = FALSE,
                      gammaslope.fixed = cbind(2, 3))
 ```
 
-The GPCM can also come from TAM's own function. Likelihood-ratio tests along the lattice:
+The GPCM can also come from TAM's own function. Likelihood-ratio tests along the hierarchy:
 
 ```{r fit-pcm-gpcm}
 m_gpcm <- tam.mml.2pl(sc, irtmodel = "GPCM", verbose = FALSE)
@@ -189,7 +197,7 @@ lr[nested, ]
 
 Only nested pairs are shown: the GPCM and the step model do not contain each other, nor do the step model and `m_mix`, and the likelihood ratio between them is meaningless. On these data every step is worth it: the step model beats the PCM by 97 units on 2 df (steps differ), the GPCM by 45 on 3 df (items differ), and the saturated model beats both.
 
-> **Which PCM?** For likelihood-ratio comparisons use `tam.mml.3pl(E = tppcm(dat, "pcm"))` (common slope, variance 1), so that all models share one parameterization and one set of quadrature nodes. `tam.mml()` estimates the variance instead; the two parameterizations are nested mathematically, but with TAM's default 21 nodes their numerical integration errors differ. Above, the two PCM log-likelihoods differ by 7 units; with more items the likelihood ratio against a slope-parameterized model can even become negative. Alternatively use more nodes, e.g. `control = list(nodes = seq(-6, 6, len = 61))`.
+> **Which PCM?** For likelihood-ratio comparisons use `tam.mml.3pl(E = tppcm(dat, design = ~ 1))` (common slope, variance 1), so that all models share one parameterization and one set of quadrature nodes. `tam.mml()` estimates the variance instead; the two parameterizations are nested mathematically, but with TAM's default 21 nodes their numerical integration errors differ. Above, the two PCM log-likelihoods differ by 7 units; with more items the likelihood ratio against a slope-parameterized model can even become negative. Alternatively use more nodes, e.g. `control = list(nodes = seq(-6, 6, len = 61))`.
 
 # 3. Reports, standard errors, fit and information
 
@@ -289,10 +297,10 @@ GPCM against the saturated TPPCM:
 score_test(m_gpcm)
 ```
 
-GPCM against the product form. This test relaxes only the step pattern $\gamma_2, \gamma_3$ shared by all items, df = 2 (`against` can also be `"gpcm"` or `"step"`, following the lattice):
+GPCM against Rank-1: is there a step effect? This test relaxes only the step pattern $\gamma_2, \gamma_3$ shared by all items, df = 2 (`against` can be any larger model of the hierarchy, e.g. `~ item` or `~ step` for a PCM fit):
 
 ```{r score-rank1}
-score_test(m_gpcm, against = "rank1")
+score_test(m_gpcm, against = ~ item + step)
 ```
 
 Per-item tests relax all step discriminations of item $i$:
@@ -309,17 +317,17 @@ mi(m_gpcm)
 
 **Reading the EPC**: if this step were freed, its discrimination is expected to be this much higher (positive) or lower (negative) than the common GPCM slope of the item. Here every third step has a large negative EPC and the first two steps positive ones: the pattern is the same in all four items, which is exactly what the product form describes, one step pattern $\gamma$ shared by the items and an item-specific size $\alpha_i$.
 
-# 5. The product form
+# 5. Rank-1: the product form `~ item + step`
 
 $a_{il} = \alpha_i\gamma_l$ is bilinear and cannot be written as a linear design for `tam.mml.3pl()`, so it is fitted with sirt's `xxirt()`. `xxirt_tppcm()` uses the same 21 quadrature nodes as TAM by default, so the log-likelihoods are directly comparable.
 
 ```{r rank1}
-m_rank1 <- xxirt_tppcm(as.matrix(sc), "rank1")
+m_rank1 <- xxirt_tppcm(as.matrix(sc), design = ~ item + step)
 irt_pars(m_rank1, restricted = TRUE)     # alpha, gamma and their SEs
 irt_pars(m_rank1)
 ```
 
-Score test of the product form against the saturated model (the saturated model need not be fitted):
+Score test of Rank-1 against the saturated model, i.e. of the item × step interaction (the saturated model need not be fitted):
 
 ```{r rank1-score}
 score_test(m_rank1)
@@ -346,71 +354,140 @@ data(data.gpcm, package = "TAM")
 irt_pars(xxirt_tppcm(as.matrix(data.gpcm)), fit = FALSE)
 ```
 
-# 6. DIF in step discriminations and step difficulties
+# 6. Differential step functioning
 
-DIF can sit in the step discriminations or in the step difficulties (locations). tppcm offers two tools, both needing only one fit of the model to the whole sample:
+Every step of a TPPCM item is a category boundary with its own discrimination (CBD, `disc`) and location (CBL, `diff`; or intercept IBD, `int`). *Differential step functioning* (DSF) means that a boundary parameter differs between groups of persons with the same $\theta$. tppcm offers four tools:
 
-- `dif_test()`: when the covariate to check is known, score-based tests (Merkle & Zeileis, 2013) per step, per item or for a block of parameters, without fitting multigroup models.
-- `tppcmtree()`: when there are several covariates and the grouping is unknown, model-based recursive partitioning (a DIF tree) finds it.
+| Question | Function | Test |
+|---|---|---|
+| Which steps differ between known groups? (screen) | `dif_test(fit, g, by = "step")` | score (LM) test per step from one multigroup fit, 2 df |
+| Is it the CBD or the location of a flagged step? | `dsf(fit, items = )` | likelihood ratio tests, one parameter released at a time |
+| Do the groups differ in CBDs or IBDs at all? | `dsf_design()` with TAM | likelihood ratio tests of configural, metric and scalar models |
+| Several covariates, grouping unknown | `tppcmtree()` | model-based recursive partitioning |
 
-Both test discriminations and difficulties **separately**.
+## Impact is not DIF: model the group distributions first
 
-## `dif_test()`: score-based DIF tests
-
-The TIMSS 2011 mathematics items of `TAM::data.timssAusTwn.scored` were answered by 1050 Australian and 719 Taiwanese fourth graders; gender is also recorded. Fit the saturated TPPCM once to the whole sample and hand the covariate to `dif_test()`. `parm` chooses the parameters (`"disc"` or `"diff"`), `by` the unit of testing:
+The TIMSS 2011 mathematics items of `TAM::data.timssAusTwn.scored` were answered by 1050 Australian and 719 Taiwanese fourth graders; gender is also recorded. `dif_test()` takes the fitted model and the covariate. `parm` chooses the parameters (default `c("disc", "diff")`, or only `"disc"` or `"diff"`), `by` the unit of testing:
 
 - `"param"`: every parameter separately, e.g. each step discrimination;
+- `"step"`: the discrimination and location of every step jointly (2 df), independent of the parameterization;
 - `"item"`: the parameters of an item jointly;
 - `"block"`: all selected parameters jointly.
+
+When the covariate is unrelated to ability, a single fit to the whole sample suffices. For gender:
 
 ```{r dif-test}
 cov <- data.timssAusTwn.scored[, c("IDCNTRY", "ITSEX")]
 cov$country <- factor(cov$IDCNTRY, labels = c("AUS", "TWN"))
 cov$sex     <- factor(cov$ITSEX,   labels = c("girl", "boy"))
 sp_timss <- get_parts(m_timss)                  # compute once, reuse below
-dif_test(sp_timss, cov$sex, parm = "diff", by = "item")
-dif_test(sp_timss, cov$sex, parm = "disc", by = "item")
+dif_test(sp_timss, cov$sex, by = "item")
 ```
 
-Gender shows no DIF after the Holm correction (`p_holm`). The functional is chosen from the type of the covariate: a factor gives the LM test (equivalent to the score test of a multigroup model, df = number of parameters × (groups − 1)); an ordered factor gives the weighted maximum LM test (`"maxLMo"`); a numeric covariate gives the Cramér–von Mises type `"CvM"`. `functional = ` overrides the choice.
-
-Every unit is tested with its efficient score, that is after residualizing on **all other parameters**, so DIF in other parameters does not leak into the test.
-
-### Impact is not DIF: absorb group differences in ability first
-
-Now the country:
+Gender shows no DIF after the Holm correction (`p_adj`; `adjust = ` chooses another method of `p.adjust()`). On a single-group fit the case-wise scores are ordered by the covariate and aggregated with a functional chosen from its type (Merkle & Zeileis, 2013): a factor gives the LM test, an ordered factor the weighted maximum LM test (`"maxLMo"`), a numeric covariate the Cramér–von Mises type `"CvM"`; `functional = ` overrides the choice. The message is a reminder of the condition above: a single-group fit is only valid when the groups do not differ in ability, which the next example violates.
 
 ```{r dif-impact}
 dif_test(sp_timss, cov$country, parm = "diff", by = "item")
 ```
 
-Almost every item is flagged, with enormous statistics. This is not DIF but *impact*: Taiwanese students have a much higher mean ability, and the single-group model assumes one $N(0,1)$ distribution for everybody. The scores of all difficulty parameters then move with the covariate, and the test correctly reports that the model is misspecified for this covariate, only not in the way one is looking for. The same holds for any covariate correlated with $\theta$.
+Almost every item is flagged, with enormous statistics. This is not DIF but *impact*: Taiwanese students have a much higher mean ability, and the single-group model assumes one $N(0,1)$ distribution for everybody. The scores of all difficulty parameters then move with the covariate. The same holds for any covariate correlated with $\theta$.
 
-The remedy is to let the model have the group difference: fit the multigroup model with `group = ` (group means and variances estimated, item parameters common) and test on that fit. The scores are then conditional on the group distributions and only genuine item-level differences remain:
+The remedy is to let the model have the group difference: fit the multigroup model with `group = ` (latent means and variances of groups 2, …, G estimated, item parameters common). All DSF tests below start from this fit:
 
 ```{r dif-mg}
-m_mg <- tam.mml.3pl(timss, E = tppcm(timss), group = cov$IDCNTRY,
+m_mg <- tam.mml.3pl(timss, E = tppcm(timss), group = cov$country,
                     est.variance = FALSE, verbose = FALSE)
 irt_pars(m_mg, fit = FALSE)$group
-sp_mg <- get_parts(m_mg)
-dif_test(sp_mg, cov$country, parm = "diff", by = "item")
-dif_test(sp_mg, cov$country, parm = "disc", by = "item")
 ```
 
-Three items keep difficulty DIF and three items show discrimination DIF between the countries. For a numeric covariate correlated with ability use the latent regression `Y = ` of TAM in the same way (the regression coefficients are then treated as fixed; the function warns). The group means and variances are part of the parameter vector: they are reported with standard errors, but they are not themselves tested for DIF.
+For a numeric covariate correlated with ability use the latent regression `Y = ` of TAM in the same way (the regression coefficients are then treated as fixed; the function warns).
 
-### Why fit the TPPCM rather than the GPCM?
+## A DSF workflow for known groups
 
-`dif_test()` can only test parameters the fitted model has. With a GPCM fit discrimination exists only at the item level, so DIF in single steps is missed or shows up as difficulty DIF. Fit the saturated TPPCM to test step discriminations.
+**1. Screen every step.** On the multigroup fit, `dif_test(by = "step")` tests the CBD and location of every step jointly. It is the Lagrange multiplier test for DIF of Glas (1998), computed as the score test of the model in which the parameters of the step are split by group (2 df for two groups). The default `info = "robust"` is the generalized score test of Boos (1992), which keeps its level when the model does not fit exactly:
+
+```{r dsf-screen}
+st <- dif_test(m_mg, cov$country, by = "step")
+st
+flagged <- st$unit[st$p_adj < 0.05]
+flagged
+```
+
+Nine of the 15 boundaries differ between the countries after Holm's correction.
+
+**2. Decompose the flagged steps.** `dsf()` refits the multigroup model and releases one parameter of a step at a time, with all other steps as anchors and the latent means and variances estimated (lavaan's `group.partial`). The location row (`ibd`) releases the IBD of the step; the CBD row releases the CBD *with the location of the step free*, so it does not depend on the origin of the scale and location DSF does not leak into it. The two LR statistics add up to the joint 2-df LR test of the step. The units of `dif_test(by = "step")` can be passed as they are; every test refits the model, so here we decompose two steps:
+
+```{r dsf-lr}
+dsf(m_mg, items = c("M032166:1", "M032760C:1"), verbose = FALSE)
+```
+
+Item `M032166` is harder for Taiwanese students than for Australian students of the same ability (its IBD, the intercept, is lower; LR = 80), but it discriminates equally well in both countries (CBD LR = 0.05). Item `M032760C` in addition discriminates less sharply in Taiwan (CBD 4.5 vs 2.3; LR = 17). `dsf(m_mg, items = flagged)` runs all nine (about a minute).
+
+**3. Omnibus tests: configural, metric, scalar.** `dsf_design()` builds the multigroup TPPCM for `tam.mml.3pl()` with lavaan-style constraints across groups. The CBD plays the role of a factor loading and the IBD that of an intercept:
+
+| lavaan | `dsf_design()` | Model |
+|---|---|---|
+| (none) | `group.equal = NULL` | configural: every group its own steps; latent means 0, variances 1 |
+| `group.equal = "loadings"` | `group.equal = "cbd"` | metric: CBDs equal, IBDs free; latent variances free |
+| `group.equal = c("loadings", "intercepts")` | `group.equal = c("cbd", "ibd")` | scalar: CBDs and IBDs equal; latent means and variances free |
+| `group.partial = ` | `group.partial = list(cbd = , ibd = )` or `"item:step"` | single steps released |
+
+```{r dsf-design}
+fit_mg <- function(d) tam.mml.3pl(d$resp, A = d$A, E = d$E, group = cov$country,
+                                  variance.fixed = d$variance.fixed,
+                                  beta.fixed = d$beta.fixed, verbose = FALSE)
+configural <- fit_mg(dsf_design(timss, cov$country, group.equal = NULL))
+metric     <- fit_mg(dsf_design(timss, cov$country, group.equal = "cbd"))
+scalar     <- fit_mg(dsf_design(timss, cov$country))
+partial    <- fit_mg(dsf_design(timss, cov$country, group.partial = flagged))
+IRT.compareModels(configural, metric, scalar, partial)$LRtest
+```
+
+The scalar model is the multigroup fit `m_mg` itself (same log-likelihood). Both the CBDs (metric vs configural) and the IBDs (scalar vs metric) differ between the countries. Releasing the nine flagged steps (`partial`, `group.partial = flagged`) leaves no significant difference to the configural model (row `partial`–`configural`), while the scalar model is clearly worse than the partial one. Read only nested pairs: `metric` and `partial` are not nested.
+
+## Why the joint test is the screen
+
+- **Clean null, invariant.** The joint test of a step asks whether the boundary is the same in all groups. Its null hypothesis does not depend on how the boundary is parameterized: (CBD, CBL) and (CBD, IBD) give the same statistic. This is the logic of Lord's (1980) $\chi^2$ test and of the Wald tests of Woods, Cai and Wang (2013), which test all parameters of an item jointly, and of Stark, Chernyshenko and Drasgow (2006), who test loadings and intercepts simultaneously. Thissen (2024) discusses grouping DIF tests by parameter or by item.
+- **The 1-df rows leak.** With `by = "param"` the `disc` row of a step tests its CBD *with its CBL held equal across groups*. When only the location differs, the CBD has to absorb part of the difference. On the TIMSS data, the `disc` row of `M032166` is highly significant, although the LR test of its CBD with the location free (step 2 above) is 0.05:
+
+```{r dsf-leak}
+dif_test(m_mg, cov$country, parm = c("M032166_disc1", "M032166_diff1"))
+```
+
+A small simulation shows the same (600 persons per group, 200 replications, DSF only in step 2 of item 2; rejection rates at $\alpha = .05$):
+
+| DSF in item 2, step 2 | `by = "param"`, `disc` row (CBD, CBL held equal) | `by = "param"`, `diff` row (CBL) | `by = "step"` (joint) |
+|---|---|---|---|
+| location only (CBL + 0.5) | .165 | 1.00 | .99 |
+| CBD only (CBD + 0.8) | .46 | .07 | .36 |
+
+A location shift is reported as CBD DSF in one of six data sets. The 1-df CBD row is more powerful against a pure CBD difference, but its null hypothesis is not "the CBD is invariant". Screen with the joint test and decompose with `dsf()`.
+
+- **Which information matrix.** A score test needs an information matrix, and under misspecification the choice matters (Falk & Monroe, 2018; Guastadisegni et al., 2021). In a simulation of the per-step screen (two groups, 500 replications per cell; misfit = local dependence between two items), the rejection rates of the joint 2-df tests were:
+
+| | N per group | `info = "robust"` | `"louis"` | `"opg"` | LR |
+|---|---|---|---|---|---|
+| Type I error, model true | 300 | .030 | .045 | .056 | .043 |
+| | 600 | .043 | .056 | .066 | .051 |
+| Type I error, misfit | 300 | .050 | .072 | .089 | .069 |
+| | 600 | .047 | .060 | .064 | .056 |
+| Power, ΔCBD = 0.8 | 600 | .360 | .388 | .416 | .396 |
+| Power, size-adjusted | 600 | .398 | .390 | .412 | .412 |
+
+The robust test was the only one that stayed at or below the nominal level, within Monte Carlo error, in every null condition; it is slightly conservative with 300 persons per group. After size adjustment all four have the same power. `info = "louis"` reproduces the LR test closely (correlation about .99) without refitting and shares its slight excess in small samples; `"opg"` is liberal.
+
+## Why fit the TPPCM rather than the GPCM?
+
+`dif_test()` can only test parameters the fitted model has. With a GPCM fit discrimination exists only at the item level, so DSF in single steps is missed or shows up as location DIF. Fit the saturated TPPCM to test steps (`by = "step"` requires it).
 
 ## `tppcmtree()`: DIF trees
 
 `tppcmtree()` uses `partykit::mob()`: every node is fitted with `tam.mml.3pl()` and the design of `tppcm()`, and the parameters are tested for stability along the covariates. `parm` decides which parameters drive the splits:
 
-- `parm = "disc"`: discriminations only (step discriminations with `model = "tppcm"`, item discriminations with `"gpcm"`);
+- `parm = "disc"`: discriminations only (step discriminations with `design = ~ item * step`, item discriminations with `design = ~ item`);
 - `parm = "diff"`: step difficulties only;
 - in the slope–intercept parameterization (`param = "si"`) the counterparts are `parm = "slope"` and `parm = "int"`;
-- `parm = "all"`: all parameters.
+- `parm = c("disc", "diff")` (default): all parameters.
 
 The response matrix goes into a data frame as a matrix column. On the TIMSS data the tree splits by country first, which is the impact of the previous section, and then by gender within Taiwan for the difficulties:
 
@@ -422,9 +499,9 @@ tr_diff
 tr_disc
 ```
 
-The impact problem of the previous section exists in every DIF tree based on a marginal model: a covariate correlated with ability will be split on. Read the first split of a tree on such a covariate as a difference in ability, and compare the item parameters of its daughter nodes with `coef()` after bringing them to a common scale; or use `dif_test()` on the multigroup fit as above.
+The impact problem of the previous section exists in every DIF tree based on a marginal model: a covariate correlated with ability will be split on. Read the first split of a tree on such a covariate as a difference in ability, and compare the item parameters of its daughter nodes with `coef()` after bringing them to a common scale; or use `impact = ` (latent means and variances estimated in every node), or the multigroup workflow above.
 
-The tree needs a few hundred respondents per node for the saturated TPPCM. In a node where a category of some item is no longer observed the fit stops with a message asking for a larger `minsize`; `model = "gpcm"` or `"pcm"` needs fewer respondents.
+The tree needs a few hundred respondents per node for the saturated TPPCM. In a node where a category of some item is no longer observed the fit stops with a message asking for a larger `minsize`; `design = ~ item` or `~ 1` needs fewer respondents.
 
 A detail matters here: when `partykit::mob()` tests a subset of the parameters it decorrelates all parameters first and then picks the components to test. The estimates of $a$ and $b$ are correlated, so instability of $b$ leaks into the test of $a$. `tppcmtree()` uses `orthogonal = TRUE` by default: the scores of the tested block are residualized on the other block first (efficient scores, $s_a - s_b \hat I_{bb}^{-1}\hat I_{ba}$).
 
@@ -439,7 +516,7 @@ The verbal aggression data of De Boeck and Wilson (2004), shipped with psychotoo
 ```{r tree-va}
 data("VerbalAggression", package = "psychotools")
 tr_va <- tppcmtree(resp ~ gender + anger, data = VerbalAggression,
-                   model = "pcm", parm = "diff", minsize = 50)
+                   design = ~ 1, parm = "diff", minsize = 50)
 partykit::character_split(tr_va$node$split, tr_va$data)$name
 ```
 
@@ -479,28 +556,37 @@ score_test(sp); mi(sp)[1:3, ]
 
 ## Workflow
 
-1. Fit the PCM, GPCM and step model with TAM (`tppcm(dat, "pcm")`, `"gpcm"`, `"step"`) and compare them with `IRT.compareModels()`; the M2, RMSEA, SRMSR, CFI and TLI in the header of `irt_pars()` show the overall fit of each.
-2. From the GPCM: `score_test()` for the overall picture, `item_test()` for the items, `mi()` for the steps. From the PCM, `score_test(m_pcm, "gpcm")` and `score_test(m_pcm, "step")` test differences between items and between steps.
-3. If the EPC pattern is the same across items, test the product form (`score_test(m_gpcm, "rank1")`, then fit it with `xxirt_tppcm()`).
+1. Fit the PCM, GPCM and step model with TAM (`tppcm(dat, design = ~ 1)`, `~ item`, `~ step`) and compare them with `IRT.compareModels()`; the M2, RMSEA, SRMSR, CFI and TLI in the header of `irt_pars()` show the overall fit of each.
+2. From the GPCM: `score_test()` for the overall picture, `item_test()` for the items, `mi()` for the steps. From the PCM, `score_test(m_pcm, against = ~ item)` and `score_test(m_pcm, against = ~ step)` test differences between items and between steps.
+3. If the EPC pattern is the same across items, test the product form (`score_test(m_gpcm, against = ~ item + step)`, then fit it with `xxirt_tppcm()`).
 4. If only a few items deviate, free only those with `tppcm(dat, index = )`.
 5. Report the final model with `irt_pars()` (with `long = TRUE` when needed).
-6. With grouping or background variables, fit the saturated TPPCM and test discriminations and difficulties separately with `dif_test(parm = "disc")` and `dif_test(parm = "diff")`. If the covariate may be related to ability, fit with `group = ` (or `Y = `) first. With many covariates and an unknown grouping use `tppcmtree()`.
+6. With known groups, check DSF: fit the multigroup TPPCM (`tam.mml.3pl(E = tppcm(dat), group = g, est.variance = FALSE)`, so that impact is modelled), screen every step with `dif_test(fit, g, by = "step")` (Holm-adjusted `p_adj`), decompose the flagged steps with `dsf(fit, items = flagged)` (LR tests of the CBD with the location free, and of the IBD), and test configural, metric and scalar models with `dsf_design()`. Do not read the 1-df `disc` rows of `by = "param"` as tests of the CBD alone. For a numeric covariate related to ability use `Y = `; with many covariates and an unknown grouping use `tppcmtree()`.
 
 ## Caveats
 
 - **Categories**: `tppcm()` allows different numbers of categories per item (every category from 0 to the maximum of each item must be observed); `xxirt_tppcm()` and the product form need the same number of categories for all items.
 - **Coding**: categories must be 0, 1, …; subtract 1 from 1–5 Likert data, otherwise `tppcm()` stops with an error.
 - **Supported fits**: unidimensional divide-by-total models (the adjacent-category logits are linear in $\theta$) from TAM and xxirt, including binary items, the RSM, multiple groups, weights (`pweights`) and latent regression (with a warning). Models with guessing parameters, facet models (`tam.mml.mfr()`), JML and multidimensional models are rejected. With weights, `m2()` and `dif_test()` are unavailable; with latent regression, `m2()` is unavailable.
-- **Comparing with the PCM**: for LR comparisons use the PCM from `tppcm(dat, "pcm")` or more quadrature nodes. `tam.mml()` (variance estimated) and the slope-parameterized models cannot be subtracted at the default nodes.
+- **Comparing with the PCM**: for LR comparisons use the PCM from `tppcm(dat, design = ~ 1)` or more quadrature nodes. `tam.mml()` (variance estimated) and the slope-parameterized models cannot be subtracted at the default nodes.
 
 # References
 
 - Bock, R. D. (1972). Estimating item parameters and latent ability when responses are scored in two or more nominal categories. *Psychometrika, 37*, 29–51.
+- Boos, D. D. (1992). On generalized score tests. *The American Statistician, 46*, 327–333.
 - Cai, L., & Monroe, S. (2014). *A new statistic for evaluating item response theory models for ordinal data* (CRESST Report 839).
 - De Boeck, P., & Wilson, M. (Eds.) (2004). *Explanatory item response models*. Springer.
+- Falk, C. F., & Monroe, S. (2018). On Lagrange multiplier tests in multidimensional item response theory: Information matrices and model misspecification. *Educational and Psychological Measurement, 78*, 653–678.
+- Glas, C. A. W. (1998). Detection of differential item functioning using Lagrange multiplier tests. *Statistica Sinica, 8*, 647–667.
+- Guastadisegni, L., Cagnone, S., Moustaki, I., & Vasdekis, V. (2021). Use of the Lagrange multiplier test for assessing measurement invariance under model misspecification. *Educational and Psychological Measurement*. https://doi.org/10.1177/00131644211020355
+- Lord, F. M. (1980). *Applications of item response theory to practical testing problems*. Erlbaum.
 - Masters, G. N. (1982). A Rasch model for partial credit scoring. *Psychometrika, 47*, 149–174.
 - Maydeu-Olivares, A., & Joe, H. (2006). Limited information goodness-of-fit testing in multidimensional contingency tables. *Psychometrika, 71*, 713–732.
 - Merkle, E. C., & Zeileis, A. (2013). Tests of measurement invariance without subgroups: A generalization of classical methods. *Psychometrika, 78*, 59–82.
 - Muraki, E. (1992). A generalized partial credit model: Application of an EM algorithm. *Applied Psychological Measurement, 16*, 159–176.
+- Preston, K., Reise, S., Cai, L., & Hays, R. D. (2011). Using the nominal response model to evaluate response category discrimination in the PROMIS emotional distress item pools. *Educational and Psychological Measurement, 71*, 523–550.
+- Stark, S., Chernyshenko, O. S., & Drasgow, F. (2006). Detecting differential item functioning with confirmatory factor analysis and item response theory: Toward a unified strategy. *Journal of Applied Psychology, 91*, 1292–1306.
+- Thissen, D. (2024). A review of some of the history of factorial invariance and differential item functioning. *Multivariate Behavioral Research*. https://doi.org/10.1080/00273171.2024.2396148
+- Woods, C. M., Cai, L., & Wang, M. (2013). The Langer-improved Wald test for DIF testing with multiple groups: Evaluation and comparison to two-group IRT. *Educational and Psychological Measurement, 73*, 532–547.
 - Yu, M.-N. (1991). *A two-parameter partial credit model* (Doctoral dissertation). University of Illinois at Urbana-Champaign.
 - Zeileis, A., Hothorn, T., & Hornik, K. (2008). Model-based recursive partitioning. *Journal of Computational and Graphical Statistics, 17*, 492–514.

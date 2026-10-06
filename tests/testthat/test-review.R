@@ -42,13 +42,13 @@ test_that("multigroup fits carry the free group parameters", {
 
 test_that("score_test checks containment and category numbers", {
   dat <- make_data()
-  g <- TAM::tam.mml.3pl(dat, E = tppcm(dat, "gpcm"), est.variance = FALSE, verbose = FALSE)
-  expect_error(score_test(g, "step"), "does not contain")
+  g <- TAM::tam.mml.3pl(dat, E = tppcm(dat, design = ~ item), est.variance = FALSE, verbose = FALSE)
+  expect_error(score_test(g, against = ~ step), "does not contain")
   d2 <- as.matrix(dat); d2[, 1] <- pmin(d2[, 1], 2)
-  g2 <- TAM::tam.mml.3pl(d2, E = tppcm(d2, "gpcm"), est.variance = FALSE, verbose = FALSE)
-  expect_error(score_test(g2, "rank1"), "same number of categories")
+  g2 <- TAM::tam.mml.3pl(d2, E = tppcm(d2, design = ~ item), est.variance = FALSE, verbose = FALSE)
+  expect_error(score_test(g2, against = ~ item + step), "same number of categories")
   expect_output(print(score_test(g)), "Louis information")
-  expect_match(tppcm:::.label(get_parts(g)), "GPCM design")
+  expect_match(tppcm:::.label(get_parts(g)), "GPCM, design ~ item (tam.mml.3pl)", fixed = TRUE)
 })
 
 test_that("irt_pars flags near-zero discriminations and validates level", {
@@ -65,9 +65,9 @@ test_that("irt_pars flags near-zero discriminations and validates level", {
 
 test_that("xxirt_tppcm objects print a summary", {
   dat <- make_data()
-  fit <- xxirt_tppcm(as.matrix(dat), "gpcm")
+  fit <- xxirt_tppcm(as.matrix(dat), design = ~ item)
   expect_s3_class(fit, "xxirt_tppcm")
-  expect_output(print(fit), "xxirt fit of the GPCM")
+  expect_output(print(fit), "xxirt fit of the GPCM (design ~ item)", fixed = TRUE)
   expect_equal(get_parts(fit, "model"), "gpcm")
 })
 
@@ -85,6 +85,10 @@ test_that("tppcmtree keeps rows with missing responses and supports impact", {
   tr2 <- tppcmtree(resp ~ g + z, data = df, parm = "diff", minsize = 200, impact = "g")
   cf <- coef(tr2); nm <- if (is.matrix(cf)) colnames(cf) else names(cf)
   expect_true(any(grepl("^grp:mean", nm)))
+  tr3 <- tppcmtree(resp ~ g, data = df, design = ~ step, parm = "diff", minsize = 200)
+  expect_output(print(tr3), "node design: ~ step", fixed = TRUE)
+  expect_error(tppcmtree(resp ~ g, data = df, design = ~ item + step), "Rank-1")
+  expect_error(tppcmtree(resp ~ g, data = df, model = "pcm"), "no 'model' argument")
   df2 <- df; df2$g[1] <- NA
   expect_error(tppcmtree(resp ~ g + z, data = df2), "missing values")
   expect_error(tppcmtree(z ~ g, data = df), "matrix column")

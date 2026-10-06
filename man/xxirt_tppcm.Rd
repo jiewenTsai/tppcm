@@ -6,7 +6,7 @@
 \usage{
 xxirt_tppcm(
   dat,
-  model = c("tppcm", "rank1", "gpcm"),
+  design = ~item * step,
   Theta = matrix(seq(-6, 6, length.out = 21), ncol = 1),
   lower0 = TRUE,
   ...
@@ -15,7 +15,8 @@ xxirt_tppcm(
 \arguments{
 \item{dat}{Item responses coded \verb{0, ..., K-1}, same \code{K} for all items.}
 
-\item{model}{\code{"tppcm"}, \code{"rank1"} or \code{"gpcm"}.}
+\item{design}{\code{~ item * step} (default, saturated), \code{~ item + step}
+(Rank-1) or \code{~ item} (GPCM); see \code{\link[=tppcm]{tppcm()}}.}
 
 \item{Theta}{Quadrature nodes (matrix with one column).}
 
@@ -33,10 +34,13 @@ An \code{xxirt} object (with the additional class \code{xxirt_tppcm}, whose
 and the other tools of this package.
 }
 \description{
-Use this for what TAM cannot estimate exactly: the bilinear product form
-(\code{"rank1"}: \eqn{a_{il} = \alpha_i\gamma_l}, \eqn{\gamma_1 = 1}, \eqn{\gamma}
-shared across items) and the bound \eqn{a_{il} \ge 0}. The saturated model
-and the GPCM are also available, e.g. for simulations.
+Use this for what TAM cannot estimate exactly: Rank-1, the multiplicative
+product form (\code{design = ~ item + step}: \eqn{a_{il} = \alpha_i\gamma_l},
+\eqn{\gamma_1 = 1}, \eqn{\gamma} shared across items; see \code{\link[=tppcm]{tppcm()}} for
+the item x step view of the designs) and the bound \eqn{a_{il} \ge 0}. The
+saturated model (\code{~ item * step}) and the GPCM (\code{~ item}) are also
+available, e.g. for simulations; fit \code{~ 1} and \code{~ step} with
+\code{\link[TAM:tam.mml.3pl]{TAM::tam.mml.3pl()}} and \code{\link[=tppcm]{tppcm()}}.
 }
 \details{
 The latent trait is \eqn{N(0, 1)}. The default nodes are those of
@@ -49,7 +53,9 @@ fits of the same data (e.g. with \code{CDM::IRT.compareModels()}; use its
 set.seed(1)
 dat <- sim_tppcm(500, disc = outer(c(0.8, 1, 1.2, 1.5), c(1, 1.5, 0.7)),
                       diff = matrix(c(-1, 0, 1), 4, 3, byrow = TRUE))
-fit <- xxirt_tppcm(dat, "rank1")
-cbind(est = coef(fit), se = sqrt(diag(xxirt_vcov(fit))))
+fit <- xxirt_tppcm(dat, design = ~ item + step)       # Rank-1
+fit
+irt_pars(fit, restricted = TRUE)                       # alpha_i, gamma_l
+score_test(fit)                                        # item x step interaction?
 }
 }

@@ -34,15 +34,7 @@ errors and confidence limits instead of the compact report.}
 
 \item{restricted}{Return the parameters of the fitted model instead, e.g.
 the item slopes of the GPCM or \eqn{\alpha_i, \gamma_l} of the product
-form, with standard errors and confidence limits.
-A step discrimination that is numerically 0 (an estimate on the bound of
-\code{xxirt_tppcm()}) or practically flat (\verb{|disc| < 0.1}) makes the step
-difficulty \code{diff = -int / disc} meaningless; for such steps \code{diff} and its
-SE are left blank and the step is listed below the table. The
-slope-intercept form (\code{IRTpars = FALSE}) is well behaved for them.
-
-With \code{fit = TRUE} the header includes \code{\link[=m2]{m2()}}, which takes a few seconds for
-long tests (e.g. 24 items); use \code{fit = FALSE} to skip it.}
+form, with standard errors and confidence limits.}
 }
 \value{
 Object of class \code{irt_pars}: a list with \code{items} (estimates, items x
@@ -65,8 +57,19 @@ difficulty; TAM's \code{beta + tau}; mirt's \code{b} with \code{IRTpars = TRUE};
 \code{psychotools::threshpar()}). With \code{IRTpars = FALSE} it is
 \code{slope * theta + int}, where the step intercepts \code{int} cumulate to the
 category intercepts of mirt / psychotools (\code{d_k}), which equal \code{-AXsi_} in TAM.
+In the terms of the category boundary literature \code{disc} (= \code{slope}) is
+the CBD, \code{diff} the CBL and \code{int} the IBD (see \link{tppcm-package}).
 Standard errors come from the observed information of the fitted model
 (delta method for \code{diff}), not from TAM's \code{se.gammaslope}/\code{se.xsi}.
+
+A step discrimination that is numerically 0 (an estimate on the bound of
+\code{xxirt_tppcm()}) or practically flat (\verb{|disc| < 0.1}) makes the step
+difficulty \code{diff = -int / disc} meaningless; for such steps \code{diff} and its
+SE are left blank and the step is listed below the table. The
+slope-intercept form (\code{IRTpars = FALSE}) is well behaved for them.
+
+With \code{fit = TRUE} the header includes \code{\link[=m2]{m2()}}, which takes a few seconds for
+long tests (e.g. 24 items); use \code{fit = FALSE} to skip it.
 }
 \examples{
 \donttest{

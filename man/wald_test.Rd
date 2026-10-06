@@ -4,14 +4,18 @@
 \alias{wald_test}
 \title{Wald test of equal step discriminations within items}
 \usage{
-wald_test(x)
+wald_test(x, adjust = "holm")
 }
 \arguments{
 \item{x}{A fitted model (see \code{\link[=get_parts]{get_parts()}}) or a \code{get_parts} object in
 which the tested steps are free.}
+
+\item{adjust}{Multiple-testing adjustment of \code{p_adj} over all rows, a method
+of \code{\link[stats:p.adjust]{stats::p.adjust()}} (\code{"none"} for none).}
 }
 \value{
-Data frame (class \code{tppcm_table}) with \code{item}, \code{statistic}, \code{df}, \code{p}.
+Data frame (class \code{tppcm_table}) with \code{item}, \code{statistic}, \code{df},
+\code{p}, \code{p_adj}.
 }
 \description{
 For each item, tests \eqn{a_{i1} = \dots = a_{iL}} (the item follows the
