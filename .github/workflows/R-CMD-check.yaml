@@ -44,7 +44,7 @@ jobs:
       - name: Install LaTeX packages for the PDF manual
         run: |
           tlmgr update --self
-          tlmgr install inconsolata
+          tlmgr install inconsolata makeindex
 
       - uses: r-lib/actions/setup-r-dependencies@v2
         with:
@@ -57,15 +57,3 @@ jobs:
           args: 'c("--as-cran")'
           build_args: 'c("--compact-vignettes=gs+qpdf")'
 
-      - name: Show LaTeX log of the PDF manual
-        if: failure()
-        run: |
-          R CMD Rd2pdf --no-preview --no-clean --output=manual.pdf . || true
-          which makeindex || true; makeindex --version 2>&1 | head -2 || true
-          for d in .Rd2pdf*; do
-            echo "== $d/Rd2.ilg"; cat "$d/Rd2.ilg" || true
-            echo "== $d/Rd2.log errors"; grep -n -A3 '^!' "$d/Rd2.log" | head -60 || true
-            echo "== manual makeindex"; (cd "$d" && makeindex Rd2.idx; echo "exit $?") || true
-            echo "== odd index entries"; grep -n '[!@|"]' "$d/Rd2.idx" | head -20 || true
-          done
-        shell: bash
