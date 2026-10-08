@@ -137,6 +137,30 @@ m_nrm <- tam.mml.2pl(sc, irtmodel = "2PL", verbose = FALSE)
 c(TPPCM = logLik(m_tppcm), NRM = logLik(m_nrm))
 ```
 
+## When `tam.mml.3pl()` does not converge
+
+On typical rating scales the saturated design can make TAM's EM algorithm diverge. The design is cumulative, $a_{il}$ enters the slopes of categories $l, \dots, K_i - 1$, so the steps of an item are strongly correlated in the likelihood. TAM updates each slope with its own gradient and second derivative, without the cross-derivatives, and with 5 or more steps per item and sparse low categories this step overshoots: the deviance rises from iteration to iteration, slopes drift to the bound $\pm 9.99$ and `maxiter` is exhausted. The `psych::bfi` agreeableness items (6 categories, few responses in the lowest ones) show it:
+
+```{r bfi, eval = FALSE}
+bfi <- psych::bfi[, paste0("A", 1:5)] - 1       # bfi is coded 1-6; tppcm needs 0-5
+bfi$A1 <- 5 - bfi$A1                            # reverse-keyed item
+m_bad <- tam.mml.3pl(bfi, E = tppcm(bfi), est.variance = FALSE, verbose = FALSE,
+                     control = list(maxiter = 5000))
+m_bad$iter                                      # 5000: not converged
+range(m_bad$gammaslope)                         # -9.99 and 9.99: at the bound
+```
+
+Such a fit is not an estimate. The remedy is to damp the M-step with `max.increment`, the largest change TAM allows a parameter per iteration (default 1): with `0.1` the same fit converges in a few hundred iterations and a few seconds. For the saturated design on real data, use `control = list(maxiter = 3000, max.increment = 0.1)` as the standard call.
+
+```{r bfi-fix, eval = FALSE}
+m_ok <- tam.mml.3pl(bfi, E = tppcm(bfi), est.variance = FALSE, verbose = FALSE,
+                    control = list(maxiter = 3000, max.increment = 0.1))
+m_nrm_bfi <- tam.mml.2pl(bfi, irtmodel = "2PL", verbose = FALSE)   # same model, converges as is
+c(TPPCM = logLik(m_ok), NRM = logLik(m_nrm_bfi))
+```
+
+Always compare with the NRM as above: its log-likelihood is the maximum of the same model, and `tam.mml.2pl()` reaches it without tuning. If the damped fit stays below it, it sits in a local optimum (on these items it does, by about 60 units). Then pass the NRM fit itself to the functions of the package, or, as a suggestion, start the damped fit from the NRM solution (`gammaslope = as.vector(t(get_parts(m_nrm_bfi)$a))`, `xsi.inits = cbind(seq_along(m_nrm_bfi$xsi$xsi), m_nrm_bfi$xsi$xsi)`; this needs the same number of categories in every item) and check its log-likelihood again. Quasi-Monte Carlo integration (`QMC = TRUE`) does not help; the problem is the step length, not the quadrature. The restricted designs of the next section have fewer and less correlated slopes and converge with TAM's defaults.
+
 ## The common designs
 
 `design` gives the four linear models of the hierarchy in Section 1:
