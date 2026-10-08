@@ -5,8 +5,9 @@ First release.
 ## Documentation
 
 * `?tppcm` and the vignette describe when `tam.mml.3pl()` diverges on the
-  saturated design (many steps, sparse categories) and the remedy
-  `control = list(max.increment = 0.1)`, checked against the NRM fit.
+  saturated design (many steps, sparse categories) and the standard call
+  `control = list(maxiter = 3000, max.increment = 0.1)`, checked against
+  the NRM fit; both tutorials (English and Chinese) have the section.
 
 ## Features
 

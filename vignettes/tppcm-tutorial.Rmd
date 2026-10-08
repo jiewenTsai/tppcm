@@ -150,7 +150,7 @@ m_bad$iter                                      # 5000: not converged
 range(m_bad$gammaslope)                         # -9.99 and 9.99: at the bound
 ```
 
-Such a fit is not an estimate. The remedy is to damp the M-step with `max.increment`, the largest change TAM allows a parameter per iteration (default 1): with `0.1` the same fit converges in a few hundred iterations and a few seconds. Raise `maxiter` accordingly.
+Such a fit is not an estimate. The remedy is to damp the M-step with `max.increment`, the largest change TAM allows a parameter per iteration (default 1): with `0.1` the same fit converges in a few hundred iterations and a few seconds. For the saturated design on real data, use `control = list(maxiter = 3000, max.increment = 0.1)` as the standard call.
 
 ```{r bfi-fix, eval = FALSE}
 m_ok <- tam.mml.3pl(bfi, E = tppcm(bfi), est.variance = FALSE, verbose = FALSE,
@@ -159,7 +159,7 @@ m_nrm_bfi <- tam.mml.2pl(bfi, irtmodel = "2PL", verbose = FALSE)   # same model,
 c(TPPCM = logLik(m_ok), NRM = logLik(m_nrm_bfi))
 ```
 
-Always compare with the NRM as above: its log-likelihood is the maximum of the same model, and `tam.mml.2pl()` reaches it without tuning. If the damped fit stays below it, it sits in a local optimum (on these items it does, by about 60 units); start it from the NRM solution (`gammaslope = as.vector(t(get_parts(m_nrm_bfi)$a))`, `xsi.inits = cbind(seq_along(m_nrm_bfi$xsi$xsi), m_nrm_bfi$xsi$xsi)`) or simply pass the NRM fit to the functions of the package. Quasi-Monte Carlo integration (`QMC = TRUE`) does not help; the problem is the step length, not the quadrature. The restricted designs of the next section have fewer and less correlated slopes and converge with TAM's defaults.
+Always compare with the NRM as above: its log-likelihood is the maximum of the same model, and `tam.mml.2pl()` reaches it without tuning. If the damped fit stays below it, it sits in a local optimum (on these items it does, by about 60 units). Then pass the NRM fit itself to the functions of the package, or, as a suggestion, start the damped fit from the NRM solution (`gammaslope = as.vector(t(get_parts(m_nrm_bfi)$a))`, `xsi.inits = cbind(seq_along(m_nrm_bfi$xsi$xsi), m_nrm_bfi$xsi$xsi)`; this needs the same number of categories in every item) and check its log-likelihood again. Quasi-Monte Carlo integration (`QMC = TRUE`) does not help; the problem is the step length, not the quadrature. The restricted designs of the next section have fewer and less correlated slopes and converge with TAM's defaults.
 
 ## The common designs
 

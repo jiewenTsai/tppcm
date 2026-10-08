@@ -137,6 +137,30 @@ m_nrm <- tam.mml.2pl(sc, irtmodel = "2PL", verbose = FALSE)
 c(TPPCM = logLik(m_tppcm), NRM = logLik(m_nrm))
 ```
 
+## `tam.mml.3pl()` 不收斂時
+
+在一般的評定量表上，飽和設計可能讓 TAM 的 EM 演算法發散。這個設計是累加的，$a_{il}$ 會進入類別 $l, \dots, K_i - 1$ 的斜率，所以同一題各步驟在概似函數裡高度相關。TAM 用各斜率自己的一階、二階導數更新，沒有交叉導數；當每題有 5 個以上的步驟、低分類別又很稀少時，這一步會跨過頭：偏差（deviance）一輪比一輪大，斜率漂到界限 $\pm 9.99$，直到用完 `maxiter`。`psych::bfi` 的親和性題目（6 個類別，最低的幾類很少人選）就是一例：
+
+```{r bfi, eval = FALSE}
+bfi <- psych::bfi[, paste0("A", 1:5)] - 1       # bfi 編碼為 1-6；tppcm 需要 0-5
+bfi$A1 <- 5 - bfi$A1                            # 反向題
+m_bad <- tam.mml.3pl(bfi, E = tppcm(bfi), est.variance = FALSE, verbose = FALSE,
+                     control = list(maxiter = 5000))
+m_bad$iter                                      # 5000：沒有收斂
+range(m_bad$gammaslope)                         # -9.99 與 9.99：碰到界限
+```
+
+這樣的結果不是估計值。解法是用 `max.increment` 對 M 步驟加上阻尼，也就是 TAM 每一輪允許參數變動的最大幅度（預設 1）：設為 `0.1` 時，同一個模式在幾百輪、幾秒內就收斂。在真實資料上估計飽和設計，請以 `control = list(maxiter = 3000, max.increment = 0.1)` 為標準寫法。
+
+```{r bfi-fix, eval = FALSE}
+m_ok <- tam.mml.3pl(bfi, E = tppcm(bfi), est.variance = FALSE, verbose = FALSE,
+                    control = list(maxiter = 3000, max.increment = 0.1))
+m_nrm_bfi <- tam.mml.2pl(bfi, irtmodel = "2PL", verbose = FALSE)   # 同一個模式，不需調整就收斂
+c(TPPCM = logLik(m_ok), NRM = logLik(m_nrm_bfi))
+```
+
+一定要像上面這樣和 NRM 比較：NRM 的對數概似就是同一個模式的最大值，而 `tam.mml.2pl()` 不需調整就能達到。如果加上阻尼的估計仍低於它，就是停在局部最佳解（這些題目上差約 60）。這時可以直接把 NRM 的結果傳給本套件的函數；或者，作為建議，從 NRM 的解出發重新估計（`gammaslope = as.vector(t(get_parts(m_nrm_bfi)$a))`、`xsi.inits = cbind(seq_along(m_nrm_bfi$xsi$xsi), m_nrm_bfi$xsi$xsi)`；需要每題的類別數相同），再檢查一次對數概似。準蒙地卡羅積分（`QMC = TRUE`）沒有幫助，問題出在步長，不是積分。下一節的受限設計參數較少、相關較低，用 TAM 的預設值就能收斂。
+
 ## 常用的設計
 
 `design` 提供第 1 節階層中的四個線性模式：

@@ -75,7 +75,8 @@ dat <- sim_tppcm(1000, disc = a, diff = b)
 
 # 1. Fit the models with TAM
 m_gpcm  <- tam.mml.2pl(dat, irtmodel = "GPCM", verbose = FALSE)
-m_tppcm <- tam.mml.3pl(dat, E = tppcm(dat), est.variance = FALSE, verbose = FALSE)
+m_tppcm <- tam.mml.3pl(dat, E = tppcm(dat), est.variance = FALSE, verbose = FALSE,
+                       control = list(maxiter = 3000, max.increment = 0.1))
 
 # 2. Parameters, fit and step-level tests
 irt_pars(m_tppcm)

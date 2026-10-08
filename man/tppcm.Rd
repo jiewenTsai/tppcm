@@ -108,17 +108,25 @@ categories) the deviance rises from iteration to iteration, the slopes
 drift to the bound \code{gammaslope.max} (9.99) and \code{maxiter} is exhausted.
 Such a fit is not an estimate; do not report it.
 
-The remedy is to damp the M-step: \code{control = list(max.increment = 0.1)}
-caps the change of every parameter per iteration (TAM's default is 1).
-The fit then needs more iterations (hundreds to a few thousand, a few
-seconds), so raise \code{maxiter} as well. Check the fit against TAM's nominal
-response model, which is the saturated TPPCM in another parameterization
-and converges without tuning: the log-likelihood of
-\code{tam.mml.2pl(dat, irtmodel = "2PL")} must agree. If it is higher, the
-damped fit sits in a local optimum; start from the NRM solution
-(\code{gammaslope = as.vector(t(get_parts(m_nrm)$a))},
-\code{xsi.inits = cbind(seq_along(m_nrm$xsi$xsi), m_nrm$xsi$xsi)}) or use
-the NRM fit itself (all functions of the package accept it).
+The remedy is to damp the M-step: \code{max.increment = 0.1} caps the change
+of every parameter per iteration (TAM's default is 1), and the fit then
+needs more iterations (hundreds to a few thousand, a few seconds). For
+the saturated design on real data, use this call as the standard one:
+
+\preformatted{tam.mml.3pl(dat, E = tppcm(dat), est.variance = FALSE,
+            control = list(maxiter = 3000, max.increment = 0.1))
+}
+
+Check the fit against TAM's nominal response model, which is the
+saturated TPPCM in another parameterization and converges without tuning:
+the log-likelihood of \code{tam.mml.2pl(dat, irtmodel = "2PL")} must agree.
+If the NRM log-likelihood is higher, the damped fit sits in a local
+optimum. Then either use the NRM fit itself (all functions of the package
+accept it) or, as a suggestion, start the damped fit from the NRM
+solution, e.g. \code{gammaslope = as.vector(t(get_parts(m_nrm)$a))} and
+\code{xsi.inits = cbind(seq_along(m_nrm$xsi$xsi), m_nrm$xsi$xsi)} when all
+items have the same number of categories (check the result against the
+NRM log-likelihood).
 Quasi-Monte Carlo integration (\code{QMC = TRUE}) does not help: the problem
 is the step length of the M-step, not the quadrature. Restricted designs
 (\code{~ item}, \code{~ step}, \code{~ 1}, an \code{index}) have fewer and less correlated
