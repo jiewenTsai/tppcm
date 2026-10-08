@@ -96,6 +96,35 @@ maximum likelihood estimate) and do not use \code{userfct.gammaslope} to impose
 \code{\link[=xxirt_tppcm]{xxirt_tppcm()}} for bounds.
 }
 
+\section{Convergence of \code{tam.mml.3pl()} on real rating scales}{
+
+The saturated design (\code{~ item * step}) is cumulative: \eqn{a_{il}} enters
+the slopes of categories \eqn{l, \dots, K_i - 1}, so the steps of an item
+are strongly correlated in the likelihood. TAM updates every slope with its
+own gradient and second derivative (no cross-derivatives), which overshoots
+when this correlation is strong: with 5 or more steps per item and sparse
+low categories (e.g. Likert items with few responses in the lowest
+categories) the deviance rises from iteration to iteration, the slopes
+drift to the bound \code{gammaslope.max} (9.99) and \code{maxiter} is exhausted.
+Such a fit is not an estimate; do not report it.
+
+The remedy is to damp the M-step: \code{control = list(max.increment = 0.1)}
+caps the change of every parameter per iteration (TAM's default is 1).
+The fit then needs more iterations (hundreds to a few thousand, a few
+seconds), so raise \code{maxiter} as well. Check the fit against TAM's nominal
+response model, which is the saturated TPPCM in another parameterization
+and converges without tuning: the log-likelihood of
+\code{tam.mml.2pl(dat, irtmodel = "2PL")} must agree. If it is higher, the
+damped fit sits in a local optimum; start from the NRM solution
+(\code{gammaslope = as.vector(t(get_parts(m_nrm)$a))},
+\code{xsi.inits = cbind(seq_along(m_nrm$xsi$xsi), m_nrm$xsi$xsi)}) or use
+the NRM fit itself (all functions of the package accept it).
+Quasi-Monte Carlo integration (\code{QMC = TRUE}) does not help: the problem
+is the step length of the M-step, not the quadrature. Restricted designs
+(\code{~ item}, \code{~ step}, \code{~ 1}, an \code{index}) have fewer and less correlated
+slopes and converge with the defaults.
+}
+
 \examples{
 \donttest{
 set.seed(1)

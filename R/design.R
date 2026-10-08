@@ -60,6 +60,33 @@
 #' \eqn{a_{il} \ge 0} (truncation is not the constrained estimate); use
 #' [xxirt_tppcm()] for bounds.
 #'
+#' @section Convergence of `tam.mml.3pl()` on real rating scales:
+#' The saturated design (`~ item * step`) is cumulative: \eqn{a_{il}} enters
+#' the slopes of categories \eqn{l, \dots, K_i - 1}, so the steps of an item
+#' are strongly correlated in the likelihood. TAM updates every slope with its
+#' own gradient and second derivative (no cross-derivatives), which overshoots
+#' when this correlation is strong: with 5 or more steps per item and sparse
+#' low categories (e.g. Likert items with few responses in the lowest
+#' categories) the deviance rises from iteration to iteration, the slopes
+#' drift to the bound `gammaslope.max` (9.99) and `maxiter` is exhausted.
+#' Such a fit is not an estimate; do not report it.
+#'
+#' The remedy is to damp the M-step: `control = list(max.increment = 0.1)`
+#' caps the change of every parameter per iteration (TAM's default is 1).
+#' The fit then needs more iterations (hundreds to a few thousand, a few
+#' seconds), so raise `maxiter` as well. Check the fit against TAM's nominal
+#' response model, which is the saturated TPPCM in another parameterization
+#' and converges without tuning: the log-likelihood of
+#' `tam.mml.2pl(dat, irtmodel = "2PL")` must agree. If it is higher, the
+#' damped fit sits in a local optimum; start from the NRM solution
+#' (`gammaslope = as.vector(t(get_parts(m_nrm)$a))`,
+#' `xsi.inits = cbind(seq_along(m_nrm$xsi$xsi), m_nrm$xsi$xsi)`) or use
+#' the NRM fit itself (all functions of the package accept it).
+#' Quasi-Monte Carlo integration (`QMC = TRUE`) does not help: the problem
+#' is the step length of the M-step, not the quadrature. Restricted designs
+#' (`~ item`, `~ step`, `~ 1`, an `index`) have fewer and less correlated
+#' slopes and converge with the defaults.
+#'
 #' @param dat Data frame or matrix of item responses coded `0, 1, ..., K_i - 1`.
 #'   Items may have different numbers of categories; every category from 0
 #'   to the item's maximum must be observed.

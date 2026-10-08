@@ -2,6 +2,12 @@
 
 First release.
 
+## Documentation
+
+* `?tppcm` and the vignette describe when `tam.mml.3pl()` diverges on the
+  saturated design (many steps, sparse categories) and the remedy
+  `control = list(max.increment = 0.1)`, checked against the NRM fit.
+
 ## Features
 
 * `tppcm(dat, design = )`: step design for `TAM::tam.mml.3pl()`. Submodels
