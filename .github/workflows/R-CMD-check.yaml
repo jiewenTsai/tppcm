@@ -57,13 +57,3 @@ jobs:
           args: 'c("--as-cran")'
           build_args: 'c("--compact-vignettes=gs+qpdf")'
 
-
-      - name: Time the test suite as on CRAN (temporary)
-        if: always() && runner.os == 'Windows'
-        shell: Rscript {0}
-        run: |
-          install.packages(".", repos = NULL, type = "source", quiet = TRUE)
-          Sys.setenv(NOT_CRAN = "false")
-          t <- system.time(testthat::test_dir("tests/testthat", package = "tppcm",
-            load_package = "installed", reporter = "summary"))[["elapsed"]]
-          cat(sprintf("== whole test suite with NOT_CRAN=false: %.1f s\n", t))

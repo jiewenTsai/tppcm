@@ -47,7 +47,7 @@ Local:
   built on GitHub Actions and win-builder (below).
 
 GitHub Actions (r-lib/actions, `R CMD check --as-cran` including the PDF
-manual, 2026-10-06):
+manual, 2026-10-16):
 
 | Platform | R | Status |
 |---|---|---|
@@ -55,13 +55,16 @@ manual, 2026-10-06):
 | Windows Server (x86_64, ucrt) | 4.6.1 | OK |
 | Ubuntu 24.04 (x86_64) | 4.6.1 | OK |
 | Ubuntu 24.04 (x86_64) | 4.5 (oldrel-1) | OK |
-| Ubuntu 24.04 (x86_64) | R-devel (2026-10-03 r90638) | OK |
+| Ubuntu 24.04 (x86_64) | R-devel | OK |
 
 "OK" means 0 errors and 0 warnings; the PDF manual was built and checked on
 every platform. The one NOTE on the runners comes from the HTML manual
 check (HTML Tidy or V8 not available on the runner, so that validation was
-skipped). All 374
-testthat expectations pass on every platform.
+skipped). All 374 testthat expectations pass on every platform.
+
+Check time on the GitHub Windows runner: re-building the vignettes 187 s
+(373 s before the Chinese vignettes were removed); the test suite 21 s with
+`NOT_CRAN=false` (99 s with all tests).
 
 win-builder (R-devel 2026-10-05 r90641 ucrt, 2026-10-06; run on the same
 sources with the development version number 0.1.0.9000): 0 errors |
