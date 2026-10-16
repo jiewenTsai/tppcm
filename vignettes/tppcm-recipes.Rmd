@@ -152,11 +152,36 @@ dim(xxirt_vcov(fit_r1))                          # covariance matrix of the xxir
 
 An estimate at the bound 0 is marked in the report. The third step of `Work` in `TAM::data.gpcm` is such a case: TAM gives $a = -0.04$ with a meaningless difficulty, xxirt gives $a = 0$:
 
-```{r a5-bound}
+<!-- Precomputed with tppcm 0.1.0: this code is not run when the vignette is built, to keep the CRAN check short. -->
+
+```r
 data(data.gpcm, package = "TAM")
 fit_g3 <- tam.mml.3pl(data.gpcm, E = tppcm(data.gpcm), est.variance = FALSE, verbose = FALSE)
 irt_pars(fit_g3, fit = FALSE)$items
+#>             disc1     disc2       disc3     diff1     diff2    diff3
+#> Comfort 1.4764438 0.6181333  2.24445913 -1.092584 3.8290106 2.200135
+#> Work    0.7811138 0.3291185 -0.03993933 -2.040273 2.4080559       NA
+#> Benefit 1.2492408 1.4054680  3.77027046 -1.243889 0.7109339 1.682515
 irt_pars(xxirt_tppcm(as.matrix(data.gpcm)), fit = FALSE)
+#> Model: saturated TPPCM, design ~ item * step | kernel disc * (theta - diff)
+#>
+#> $items
+#>         disc1 disc2 disc3  diff1 diff2 diff3
+#> Comfort 1.486 0.619 2.252 -1.089 3.824 2.200
+#> Work    0.781 0.319 0.000 -2.041 2.473
+#> Benefit 1.232 1.397 3.845 -1.252 0.712 1.678
+#>
+#> $se
+#>         disc1 disc2 disc3 diff1 diff2 diff3
+#> Comfort 0.560 0.358 1.244 0.236 1.898 0.386
+#> Work    0.254 0.181       0.535 1.346
+#> Benefit 0.597 0.782 4.838 0.308 0.230 0.259
+#>
+#> On the bound 0 (no SE; tests involving them are not valid): Work_disc3
+#>
+#> $group
+#>  group MEAN VAR
+#>      1    0   1
 ```
 
 **Discussion**: a parameter on the bound has no normal-theory SE, and LR and score tests involving it no longer follow a $\chi^2$ distribution. A discrimination near 0 makes the step difficulty $b = d/a$ unstable (here $-27$ with SE 205); report such items in the slope–intercept form (`irt_pars(IRTpars = FALSE)`), whose intercepts are well behaved. A negative discrimination usually means the scoring direction of that step is doubtful. `xxirt_tppcm()` uses TAM's quadrature nodes, so its log-likelihood is comparable with TAM's (C3).
@@ -450,17 +475,36 @@ tppcmtree(resp ~ gender + anger, data = va, design = ~ item, parm = "diff", mins
 
 **Solution**: on the multigroup fit, screen every step with the joint 2-df score test, decompose flagged steps with likelihood ratio tests, and compare configural, metric and scalar models:
 
-```{r d5}
+<!-- Precomputed with tppcm 0.1.0: this code is not run when the vignette is built, to keep the CRAN check short. -->
+
+```r
 st <- dif_test(fit_mg, cov$country, by = "step")       # 1. screen (Holm-adjusted p_adj)
 flagged <- st$unit[st$p_adj < 0.05]
 flagged
+#> [1] "M032166:1"  "M032757:1"  "M032757:2"  "M032760A:2" "M032760B:1" "M032760C:1"
+#> [7] "M032692:1"  "M032692:2"  "M032626:1"
 dsf(fit_mg, items = "M032692", verbose = FALSE)        # 2. decompose one item (refits)
+#> LR tests of DSF, one step parameter released at a time vs the scalar baseline (CBD and IBD equal) | reference group: AUS | p_adj: Holm
+#>     item step par    AUS    TWN      LR df       p  p_adj
+#>  M032692    1 cbd  0.638  1.244   5.455  1 0.01952 0.0195
+#>  M032692    1 ibd -3.733 -2.269  80.896  1 < 1e-04 <1e-04
+#>  M032692    2 cbd  0.648  1.382   6.816  1 0.00903 0.0181
+#>  M032692    2 ibd  0.114  2.019 129.658  1 < 1e-04 <1e-04
 d_part <- dsf_design(timss, cov$country, group.partial = list(ibd = "M032692"))
 d_part                                                 # 3. a partial-invariance model
+#> Multigroup TPPCM design: 11 items x 2 groups (reference group: AUS)
+#>   group.equal: cbd, ibd -> scalar (CBD and IBD equal); within groups: design ~ item * step
+#>   group.partial cbd: none
+#>   group.partial ibd: M032692:1, M032692:2
+#>   15 CBD and 17 IBD parameters; free latent means: groups 2; variances: groups 2
+#> Fit with TAM::tam.mml.3pl(d$resp, A = d$A, E = d$E, group = <group>,
+#>         variance.fixed = d$variance.fixed, beta.fixed = d$beta.fixed)
 m_part <- tam.mml.3pl(d_part$resp, A = d_part$A, E = d_part$E, group = cov$country,
                       variance.fixed = d_part$variance.fixed,
                       beta.fixed = d_part$beta.fixed, verbose = FALSE)
 IRT.compareModels(fit_mg, m_part)$LRtest
+#>   Model1 Model2     Chi2 df p
+#> 1 fit_mg m_part 131.1685  2 0
 ```
 
 ```{r d5-broken, error = TRUE}
@@ -516,14 +560,22 @@ sim_tppcm(10, disc, diff[, 1:2])                 # shapes differ
 
 **Solution**: the package refuses and says why:
 
-```{r e2, error = TRUE}
+<!-- Precomputed with tppcm 0.1.0: this code is not run when the vignette is built, to keep the CRAN check short. -->
+
+```r
 set.seed(4)
 th <- rnorm(1000)
 bin <- sapply(1:6, function(i) rbinom(1000, 1, 0.2 + 0.8 * plogis(th - (i - 3.5) / 2)))
 irt_pars(tam.mml.3pl(bin, guess = rep(0.2, 6), est.variance = FALSE, verbose = FALSE))   # guessing
+#> Error:
+#> ! the fitted item response functions are not of the TPPCM (divide-by-total) form (e.g. guessing parameters); this model is not supported
 irt_pars(tam.mml.2pl(sc, irtmodel = "GPCM", Q = cbind(c(1, 1, 0, 0), c(0, 0, 1, 1)),
                      verbose = FALSE))                                                   # two dimensions
+#> Error:
+#> ! only unidimensional models are supported
 irt_pars(sc)                                                                             # not a fit
+#> Error:
+#> ! expected a fitted model from TAM (tam.mml(), tam.mml.2pl(), tam.mml.3pl()) or xxirt_tppcm(), not an object of class 'data.frame'
 ```
 
 **Discussion**: the package handles unidimensional divide-by-total models (adjacent-category logits linear in $\theta$), including binary items, the RSM, multiple groups, weights and latent regression. The form is checked from the response probabilities, so other models that violate it are stopped as well. Facet models (`tam.mml.mfr()`) and JML are not supported.

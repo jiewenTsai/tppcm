@@ -373,9 +373,30 @@ round(sqrt(diag(xxirt_vcov(m_rank1)))[1:4], 3)
 
 `xxirt_tppcm()` has `lower0 = TRUE` by default, that is $a_{il} \ge 0$. When a step is estimated at 0 (small samples, or a step that really is flat) this is the proper constrained estimate, which TAM cannot provide. The report marks such parameters; `TAM::data.gpcm` has one:
 
-```{r bound}
+<!-- Precomputed with tppcm 0.1.0: this code is not run when the vignette is built, to keep the CRAN check short. -->
+
+```r
 data(data.gpcm, package = "TAM")
 irt_pars(xxirt_tppcm(as.matrix(data.gpcm)), fit = FALSE)
+#> Model: saturated TPPCM, design ~ item * step | kernel disc * (theta - diff)
+#>
+#> $items
+#>         disc1 disc2 disc3  diff1 diff2 diff3
+#> Comfort 1.486 0.619 2.252 -1.089 3.824 2.200
+#> Work    0.781 0.319 0.000 -2.041 2.473
+#> Benefit 1.232 1.397 3.845 -1.252 0.712 1.678
+#>
+#> $se
+#>         disc1 disc2 disc3 diff1 diff2 diff3
+#> Comfort 0.560 0.358 1.244 0.236 1.898 0.386
+#> Work    0.254 0.181       0.535 1.346
+#> Benefit 0.597 0.782 4.838 0.308 0.230 0.259
+#>
+#> On the bound 0 (no SE; tests involving them are not valid): Work_disc3
+#>
+#> $group
+#>  group MEAN VAR
+#>      1    0   1
 ```
 
 # 6. Differential step functioning
@@ -441,8 +462,16 @@ Nine of the 15 boundaries differ between the countries after Holm's correction.
 
 **2. Decompose the flagged steps.** `dsf()` refits the multigroup model and releases one parameter of a step at a time, with all other steps as anchors and the latent means and variances estimated (lavaan's `group.partial`). The location row (`ibd`) releases the IBD of the step; the CBD row releases the CBD *with the location of the step free*, so it does not depend on the origin of the scale and location DSF does not leak into it. The two LR statistics add up to the joint 2-df LR test of the step. The units of `dif_test(by = "step")` can be passed as they are; every test refits the model, so here we decompose two steps:
 
-```{r dsf-lr}
+<!-- Precomputed with tppcm 0.1.0: this code is not run when the vignette is built, to keep the CRAN check short. -->
+
+```r
 dsf(m_mg, items = c("M032166:1", "M032760C:1"), verbose = FALSE)
+#> LR tests of DSF, one step parameter released at a time vs the scalar baseline (CBD and IBD equal) | reference group: AUS | p_adj: Holm
+#>      item step par    AUS    TWN     LR df       p    p_adj
+#>   M032166    1 cbd  1.243  1.206  0.045  1 0.83179 0.831788
+#>   M032166    1 ibd  0.907 -0.520 80.471  1 < 1e-04  < 1e-04
+#>  M032760C    1 cbd  4.484  2.264 17.088  1 < 1e-04 0.000107
+#>  M032760C    1 ibd -3.738 -4.430  9.732  1 0.00181 0.003621
 ```
 
 Item `M032166` is harder for Taiwanese students than for Australian students of the same ability (its IBD, the intercept, is lower; LR = 80), but it discriminates equally well in both countries (CBD LR = 0.05). Item `M032760C` in addition discriminates less sharply in Taiwan (CBD 4.5 vs 2.3; LR = 17). `dsf(m_mg, items = flagged)` runs all nine (about a minute).
@@ -456,7 +485,9 @@ Item `M032166` is harder for Taiwanese students than for Australian students of 
 | `group.equal = c("loadings", "intercepts")` | `group.equal = c("cbd", "ibd")` | scalar: CBDs and IBDs equal; latent means and variances free |
 | `group.partial = ` | `group.partial = list(cbd = , ibd = )` or `"item:step"` | single steps released |
 
-```{r dsf-design}
+<!-- Precomputed with tppcm 0.1.0: this code is not run when the vignette is built, to keep the CRAN check short. -->
+
+```r
 fit_mg <- function(d) tam.mml.3pl(d$resp, A = d$A, E = d$E, group = cov$country,
                                   variance.fixed = d$variance.fixed,
                                   beta.fixed = d$beta.fixed, verbose = FALSE)
@@ -465,6 +496,13 @@ metric     <- fit_mg(dsf_design(timss, cov$country, group.equal = "cbd"))
 scalar     <- fit_mg(dsf_design(timss, cov$country))
 partial    <- fit_mg(dsf_design(timss, cov$country, group.partial = flagged))
 IRT.compareModels(configural, metric, scalar, partial)$LRtest
+#>    Model1     Model2      Chi2 df            p
+#> 1  metric configural  45.39690 14 3.516314e-05
+#> 2  scalar configural 377.30862 28 0.000000e+00
+#> 3 partial configural  15.71242 10 1.081659e-01
+#> 4  scalar     metric 331.91172 14 0.000000e+00
+#> 5  metric    partial  29.68448  4 5.674311e-06
+#> 6  scalar    partial 361.59620 18 0.000000e+00
 ```
 
 The scalar model is the multigroup fit `m_mg` itself (same log-likelihood). Both the CBDs (metric vs configural) and the IBDs (scalar vs metric) differ between the countries. Releasing the nine flagged steps (`partial`, `group.partial = flagged`) leaves no significant difference to the configural model (row `partial`–`configural`), while the scalar model is clearly worse than the partial one. Read only nested pairs: `metric` and `partial` are not nested.
@@ -515,12 +553,30 @@ The robust test was the only one that stayed at or below the nominal level, with
 
 The response matrix goes into a data frame as a matrix column. On the TIMSS data the tree splits by country first, which is the impact of the previous section, and then by gender within Taiwan for the difficulties:
 
-```{r tree-timss}
+<!-- Precomputed with tppcm 0.1.0: this code is not run when the vignette is built, to keep the CRAN check short. -->
+
+```r
 cov$resp <- as.matrix(timss)
 tr_diff <- tppcmtree(resp ~ sex + country, data = cov, parm = "diff", minsize = 300)
 tr_disc <- tppcmtree(resp ~ sex + country, data = cov, parm = "disc", minsize = 300)
 tr_diff
+#> TPPCM tree | node design: ~ item * step | splits driven by: diff (irt parameterization)
+#> Formula: resp ~ sex + country
+#> [1] root
+#> |   [2] country in AUS: n = 1050, -logLik = 6193.9
+#> |   [3] country in TWN
+#> |   |   [4] sex in girl: n = 353, -logLik = 1773.9
+#> |   |   [5] sex in boy: n = 366, -logLik = 1923.0
+#> 3 terminal node(s), 30 parameters per node; coef(x) gives the node parameters
 tr_disc
+#> TPPCM tree | node design: ~ item * step | splits driven by: disc (irt parameterization)
+#> Formula: resp ~ sex + country
+#> [1] root
+#> |   [2] country in AUS: n = 1050, -logLik = 6193.9
+#> |   [3] country in TWN
+#> |   |   [4] sex in girl: n = 353, -logLik = 1773.9
+#> |   |   [5] sex in boy: n = 366, -logLik = 1923.0
+#> 3 terminal node(s), 30 parameters per node; coef(x) gives the node parameters
 ```
 
 The impact problem of the previous section exists in every DIF tree based on a marginal model: a covariate correlated with ability will be split on. Read the first split of a tree on such a covariate as a difference in ability, and compare the item parameters of its daughter nodes with `coef()` after bringing them to a common scale; or use `impact = ` (latent means and variances estimated in every node), or the multigroup workflow above.
