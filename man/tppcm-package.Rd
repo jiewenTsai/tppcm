@@ -105,8 +105,9 @@ Holm by default); the header of the printed table says what was tested
 and how \code{p_adj} was adjusted.
 
 The vignettes \code{vignette("tppcm-tutorial")} and \code{vignette("tppcm-recipes")}
-(also in Traditional Chinese: \code{"tppcm-tutorial-zh"}, \code{"tppcm-recipes-zh"})
 show every function on data sets from TAM, CDM, mirt and psychotools.
+Traditional Chinese versions are in the GitHub repository
+(\code{vignettes/articles/}).
 }
 
 \references{

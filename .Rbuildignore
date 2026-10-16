@@ -13,3 +13,4 @@
 ^\.DS_Store$
 ^CRAN-SUBMISSION$
 ^TODO\.md$
+^vignettes/articles$

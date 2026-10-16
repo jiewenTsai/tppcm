@@ -14,7 +14,7 @@ knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
 old_options <- options(width = 90)
 ```
 
-這份文件以「問題 → 解法 → 討論 → 參見」的形式，示範 **tppcm** 的每一個函式。有些範例故意寫錯，展示套件會在哪裡把問題擋下來、訊息長什麼樣子。概念與數學請看 `vignette("tppcm-tutorial-zh")`。
+這份文件以「問題 → 解法 → 討論 → 參見」的形式，示範 **tppcm** 的每一個函式。有些範例故意寫錯，展示套件會在哪裡把問題擋下來、訊息長什麼樣子。概念與數學請看 [中文教學](https://github.com/jiewenTsai/tppcm/blob/main/vignettes/articles/tppcm-tutorial-zh.Rmd)。
 
 範例使用其他套件內附的資料集：
 
@@ -84,7 +84,7 @@ p_bad <- irt_pars(fit_bad, fit = FALSE)
 
 **討論**：飽和 TPPCM 和 TAM 的 NRM（`tam.mml.2pl(irtmodel = "2PL")`）是同一個模式，對數概似相同；`tppcm()` 讓參數直接就是步驟鑑別度，也能加限制（A3）。
 
-**參見**：`?tppcm`、`vignette("tppcm-tutorial-zh")` 第 2 節。
+**參見**：`?tppcm`、[中文教學](https://github.com/jiewenTsai/tppcm/blob/main/vignettes/articles/tppcm-tutorial-zh.Rmd) 第 2 節。
 
 ## A3. GPCM、步驟模式、PCM 與自訂限制
 
@@ -208,7 +208,7 @@ head(st[st$par == "disc", ])
 
 **討論**：`irt_pars()` 用整個模式的觀察資訊（Louis 公式），斜率與閾值之間的共變數都有考慮進去。`level =` 設定信賴水準。
 
-**參見**：`vignette("tppcm-tutorial-zh")` 第 3 節。
+**參見**：[中文教學](https://github.com/jiewenTsai/tppcm/blob/main/vignettes/articles/tppcm-tutorial-zh.Rmd) 第 3 節。
 
 ## B3. 取出數學組件
 
@@ -295,7 +295,7 @@ score_test(fit_timss, against = ~ item + step)          # TIMSS items have 1 or 
 
 **討論**：score test 只用受限模式的估計結果。`against` 是較大模式的設計公式（預設 `~ item * step`；`~ item + step`；`~ item`；`~ step`），也可以用 `D =` 給任意方向。GPCM 對 `~ item + step` 檢定步驟效果，Rank-1 對 `~ item * step` 檢定題目 × 步驟交互作用。EPC 的符號說明該步驟應該比 GPCM 的共同斜率更陡（正）還是更平（負）；這裡每題第 3 步都較平，Rank-1 用一個 $\gamma_3$ 就能表達。模式名稱 `GPCM, design ~ item (tam.mml.3pl)` 表示用 `tppcm(dat, design = ~ item)` 估計的 GPCM；用 `tam.mml.2pl(irtmodel = "GPCM")` 估計時會顯示 `GPCM, design ~ item`，結果相同；`get_parts(fit, "formula")` 傳回設計公式。
 
-**參見**：C1、C3、`vignette("tppcm-tutorial-zh")` 第 4 節。
+**參見**：C1、C3、[中文教學](https://github.com/jiewenTsai/tppcm/blob/main/vignettes/articles/tppcm-tutorial-zh.Rmd) 第 4 節。
 
 ## C3. 巢套模式的概似比檢定
 
@@ -470,11 +470,11 @@ dsf(fit_timss)                                              # needs a multigroup
 
 **討論**：
 
-- `dif_test(by = "step")` 把每一步的 CBD 與位置一起檢定（Glas, 1998；預設 `info = "robust"`，即 Boos, 1992 的廣義 score test），虛無假設不受參數化影響。不要用 `by = "param"` 中自由度 1 的 `disc` 列篩檢：它們把這一步的位置固定為跨組相等，位置的 DSF 會滲進來（見 `vignette("tppcm-tutorial-zh")` 第 6 節）。
+- `dif_test(by = "step")` 把每一步的 CBD 與位置一起檢定（Glas, 1998；預設 `info = "robust"`，即 Boos, 1992 的廣義 score test），虛無假設不受參數化影響。不要用 `by = "param"` 中自由度 1 的 `disc` 列篩檢：它們把這一步的位置固定為跨組相等，位置的 DSF 會滲進來（見 [中文教學](https://github.com/jiewenTsai/tppcm/blob/main/vignettes/articles/tppcm-tutorial-zh.Rmd) 第 6 節）。
 - `dsf()` 以純量模式（`group.equal = c("cbd", "ibd")`，即 lavaan 的負荷量與截距）為基準，一次放開一個參數，其餘界線都當定錨。CBD 列同時放開這一步的位置，因此不受量尺原點影響。`M032692` 的兩步主要是 IBD 不同（LR 81 與 130），CBD 的差異較小（LR 5.5 與 6.8）。每個檢定都要重新估計，請只傳入被標出的界線：`dsf(fit_mg, items = flagged)`。
 - `dsf_design()` 產生形貌（`group.equal = NULL`）、計量（`"cbd"`）、純量模式與部分不變模式（`group.partial`），並處理潛在平均數與變異數的識別；如上用 `tam.mml.3pl()` 估計。純量模式的對數概似與 `fit_mg` 相同。
 
-**參見**：`?dif_test`、`?dsf`、`?dsf_design`、D2、`vignette("tppcm-tutorial-zh")` 第 6 節。
+**參見**：`?dif_test`、`?dsf`、`?dsf_design`、D2、[中文教學](https://github.com/jiewenTsai/tppcm/blob/main/vignettes/articles/tppcm-tutorial-zh.Rmd) 第 6 節。
 
 # E. 模擬、不支援的模式、加權與群組
 
