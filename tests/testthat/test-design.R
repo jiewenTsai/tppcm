@@ -94,6 +94,7 @@ test_that("design formulas are parsed as an item x step layout", {
 })
 
 test_that("each design formula equals the corresponding index design and its logLik", {
+  skip_on_cran()
   dat <- make_data()
   idx <- list("~ 1" = matrix(1, 4, 3), "~ item" = matrix(1:4, 4, 3),
               "~ step" = matrix(1:3, 4, 3, byrow = TRUE), "~ item * step" = matrix(1:12, 4, 3, byrow = TRUE))
@@ -114,6 +115,7 @@ test_that("each design formula equals the corresponding index design and its log
 })
 
 test_that("score_test, xxirt_tppcm, dsf_design and tppcmtree take design formulas", {
+  skip_on_cran()
   dat <- make_data()
   g <- TAM::tam.mml.2pl(dat, irtmodel = "GPCM", verbose = FALSE)
   st <- score_test(g, against = ~ item + step)

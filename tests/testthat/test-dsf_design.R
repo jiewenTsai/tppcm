@@ -14,6 +14,7 @@ fit_mg <- function(d, g) TAM::tam.mml.3pl(d$resp, A = d$A, E = d$E, group = g,
 ll <- function(m) as.numeric(logLik(m))
 
 test_that("scalar design equals the multigroup TPPCM with est.variance = FALSE", {
+  skip_on_cran()
   s <- dsf_data()
   d0 <- dsf_design(s$dat, group = s$g)
   expect_s3_class(d0, "tppcm_dsf_design")
@@ -30,6 +31,7 @@ test_that("scalar design equals the multigroup TPPCM with est.variance = FALSE",
 })
 
 test_that("configural equals separate calibrations; metric and scalar are nested", {
+  skip_on_cran()
   s <- dsf_data(300)
   dc <- dsf_design(s$dat, s$g, group.equal = NULL)
   expect_equal(dc$variance.fixed[, 1], 1:2); expect_equal(dc$beta.fixed[, 1], 1:2)
@@ -49,6 +51,7 @@ test_that("configural equals separate calibrations; metric and scalar are nested
 })
 
 test_that("group.partial releases single steps; cbl releases the IBD with the CBD", {
+  skip_on_cran()
   s <- dsf_data()
   d1 <- dsf_design(s$dat, s$g, group.partial = list(cbd = "I2:2", ibd = "I2:2"))
   expect_equal(dim(d1$E)[4], 13); expect_equal(dim(d1$A)[3], 13)
@@ -68,6 +71,7 @@ test_that("group.partial releases single steps; cbl releases the IBD with the CB
 })
 
 test_that("items with fewer categories get NA rows in A", {
+  skip_on_cran()
   s <- dsf_data(150)
   dat <- s$dat; dat[, 4] <- pmin(dat[, 4], 2)
   d <- dsf_design(dat, group = s$g)
@@ -77,6 +81,7 @@ test_that("items with fewer categories get NA rows in A", {
 })
 
 test_that("dsf() with the scalar baseline: location and location-free CBD tests", {
+  skip_on_cran()
   s <- dsf_data()
   fit <- TAM::tam.mml.3pl(s$dat, E = tppcm(s$dat), group = s$g, est.variance = FALSE, verbose = FALSE)
   r <- dsf(fit, items = "I2", verbose = FALSE)
@@ -98,6 +103,7 @@ test_that("dsf() with the scalar baseline: location and location-free CBD tests"
 })
 
 test_that("dsf() with the metric baseline, partial baselines and bad input", {
+  skip_on_cran()
   s <- dsf_data(200)
   fit <- TAM::tam.mml.3pl(s$dat, E = tppcm(s$dat), group = s$g, est.variance = FALSE, verbose = FALSE)
   rm <- dsf(fit, group.equal = "cbd", items = "I1", verbose = FALSE)

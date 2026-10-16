@@ -11,7 +11,9 @@ Changes since the submission of 16 October 2026 (check time):
 * The two Traditional Chinese vignettes, which repeated the code of the two
   English vignettes, are no longer in the package; they stay in the GitHub
   repository. This halves the time for re-building the vignettes.
-* CHECK_TIME_PLACEHOLDER
+* The slowest tests (the multigroup refits in `test-dsf_design.R` and two
+  blocks in `test-design.R` that fit many designs) are skipped on CRAN with
+  `skip_on_cran()`; they run on GitHub Actions.
 
 Changes in response to the review of 15 October 2026 (unchanged since the
 submission of 16 October 2026):
@@ -68,7 +70,8 @@ sources with the development version number 0.1.0.9000): 0 errors |
 ## Notes for submission
 
 * Examples that fit models are wrapped in \donttest{} because they call TAM;
-  with --run-donttest every example file runs in under 1 second.
+  with --run-donttest all examples together take about 35 s on the GitHub
+  Windows runner.
 * Suggested packages (mirt, psychotools, psychotree, partykit, strucchange,
   numDeriv) are used only in examples, vignettes and tests, with
   requireNamespace() guards in the functions.
