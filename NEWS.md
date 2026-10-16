@@ -8,6 +8,8 @@ First release.
   saturated design (many steps, sparse categories) and the standard call
   `control = list(maxiter = 3000, max.increment = 0.1)`, checked against
   the NRM fit; both tutorials (English and Chinese) have the section.
+* DESCRIPTION spells out all acronyms and links Yu (1991) and Glas (1998);
+  the vignettes restore the `options()` they change (CRAN review).
 
 ## Features
 

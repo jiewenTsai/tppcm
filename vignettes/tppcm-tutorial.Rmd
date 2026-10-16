@@ -11,7 +11,7 @@ vignette: >
 
 ```{r setup, include = FALSE}
 knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
-options(width = 90)
+old_options <- options(width = 90)
 ```
 
 This vignette shows how to analyze step discriminations of polytomous items with **tppcm** and **TAM**. It covers
@@ -614,3 +614,7 @@ score_test(sp); mi(sp)[1:3, ]
 - Woods, C. M., Cai, L., & Wang, M. (2013). The Langer-improved Wald test for DIF testing with multiple groups: Evaluation and comparison to two-group IRT. *Educational and Psychological Measurement, 73*, 532–547.
 - Yu, M.-N. (1991). *A two-parameter partial credit model* (Doctoral dissertation). University of Illinois at Urbana-Champaign.
 - Zeileis, A., Hothorn, T., & Hornik, K. (2008). Model-based recursive partitioning. *Journal of Computational and Graphical Statistics, 17*, 492–514.
+
+```{r reset-options, include = FALSE}
+options(old_options)
+```

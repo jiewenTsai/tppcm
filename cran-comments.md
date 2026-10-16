@@ -1,24 +1,24 @@
 ## Resubmission
 
-This is a resubmission of tppcm 0.1.0. It replaces the submission of
-2 October 2026, which is still waiting for manual review (its auto-check
-passed with 1 NOTE: new submission and possibly misspelled words). The
-version number is unchanged because the package has never been on CRAN.
+This is a resubmission of tppcm 0.1.0, in response to the review by
+Konstanze Lauseker on 15 October 2026. The version number is unchanged
+because the package has never been on CRAN.
 
-Changes since that submission:
+Changes:
 
-* `inst/CITATION` uses `meta$Version` instead of
-  `utils::packageVersion("tppcm")`, so it can be read when the package is
-  not installed (requested by Uwe Ligges on 2 October 2026).
-* New interface: submodels are specified by a design formula for the step
-  discriminations (`design = ~ item * step` etc.) in `tppcm()`,
-  `xxirt_tppcm()`, `tppcmtree()` and `score_test()`.
-* New functions for differential step functioning: `dsf_design()` and
-  `dsf()`, and a per-step test in `dif_test(by = "step")`.
-* `inst/WORDLIST` lists the author names and acronyms in DESCRIPTION that
-  the spell check flagged.
-
-See NEWS.md for the full list.
+* DESCRIPTION no longer starts with "Tools for".
+* All acronyms in the Description are spelled out (generalized partial
+  credit model, partial credit model, root mean square error of
+  approximation, standardized root mean squared residual, comparative fit
+  index, Tucker-Lewis index); TPPCM is defined at its first use.
+* Yu (1991) and Glas (1998) are linked in the form authors (year) <https:...>
+  (the dissertation has no DOI; the link is its handle in the University of
+  Illinois repository, and Glas (1998) links to the Statistica Sinica page).
+* The vignettes save the options they change in the setup chunk
+  (`old_options <- options(width = 90)`) and restore them in a final hidden
+  chunk (`options(old_options)`). The `par()` calls already restored the old
+  settings (`op <- par(...); ...; par(op)`). Examples do not change
+  `options()`, `par()` or the working directory.
 
 ## R CMD check results
 
