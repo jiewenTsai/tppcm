@@ -11,7 +11,7 @@ vignette: >
 
 ```{r setup, include = FALSE}
 knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
-options(width = 90)
+old_options <- options(width = 90)
 ```
 
 This document shows every function of **tppcm** in the form *Problem – Solution – Discussion – See also*. Some examples are deliberately wrong to show where the package stops you and what the message looks like. The concepts and the mathematics are in `vignette("tppcm-tutorial")`.
@@ -555,3 +555,7 @@ p_lr <- irt_pars(fit_lr, fit = FALSE)                                           
 | latent regression | parameters, SEs (regression coefficients fixed), tests, `dif_test()` | `m2()` |
 
 **See also**: `?get_parts`, D2, D5.
+
+```{r reset-options, include = FALSE}
+options(old_options)
+```

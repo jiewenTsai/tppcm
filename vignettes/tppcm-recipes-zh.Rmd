@@ -11,7 +11,7 @@ vignette: >
 
 ```{r setup, include = FALSE}
 knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
-options(width = 90)
+old_options <- options(width = 90)
 ```
 
 這份文件以「問題 → 解法 → 討論 → 參見」的形式，示範 **tppcm** 的每一個函式。有些範例故意寫錯，展示套件會在哪裡把問題擋下來、訊息長什麼樣子。概念與數學請看 `vignette("tppcm-tutorial-zh")`。
@@ -555,3 +555,7 @@ p_lr <- irt_pars(fit_lr, fit = FALSE)                                           
 | 潛在迴歸 | 參數、SE（迴歸係數視為固定）、檢定、`dif_test()` | `m2()` |
 
 **參見**：`?get_parts`、D2、D5。
+
+```{r reset-options, include = FALSE}
+options(old_options)
+```
