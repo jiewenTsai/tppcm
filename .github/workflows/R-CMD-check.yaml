@@ -57,3 +57,16 @@ jobs:
           args: 'c("--as-cran")'
           build_args: 'c("--compact-vignettes=gs+qpdf")'
 
+
+      - name: Print vignette output as markdown (temporary)
+        if: always() && runner.os == 'Linux' && matrix.config.r == 'release'
+        shell: Rscript {0}
+        run: |
+          install.packages(".", repos = NULL, type = "source", quiet = TRUE)
+          for (f in list.files("vignettes", "\\.Rmd$", full.names = TRUE)) {
+            out <- rmarkdown::render(f, output_format = rmarkdown::md_document(variant = "gfm"),
+                                     output_dir = tempdir(), envir = new.env(), quiet = TRUE)
+            cat("=====BEGIN", basename(f), "\n")
+            cat(readLines(out), sep = "\n")
+            cat("=====END", basename(f), "\n")
+          }
