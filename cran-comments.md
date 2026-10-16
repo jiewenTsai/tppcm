@@ -69,7 +69,7 @@ check (HTML Tidy or V8 not available on the runner, so that validation was
 skipped). All 374 testthat expectations pass on every platform.
 
 Check time on the GitHub Windows runner: re-building the vignettes
-VIGNETTE_TIME (373 s on 16 October 2026); the test suite 21 s with
+38 s (373 s at the first submission); the test suite 21 s with
 `NOT_CRAN=false` (99 s with all tests).
 
 win-builder (R-devel 2026-10-05 r90641 ucrt, 2026-10-06; run on the same
