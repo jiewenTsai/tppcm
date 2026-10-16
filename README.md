@@ -105,12 +105,17 @@ if (length(flagged)) dsf(m_mg, items = flagged) # CBD vs location of flagged ste
 
 ## Documentation
 
-Two vignettes, each in English and in Traditional Chinese:
+Two vignettes:
 
-* `vignette("tppcm-tutorial", package = "tppcm")` (`"tppcm-tutorial-zh"`):
-  the model and the package.
-* `vignette("tppcm-recipes", package = "tppcm")` (`"tppcm-recipes-zh"`):
-  short recipes for every function.
+* `vignette("tppcm-tutorial", package = "tppcm")`: the model and the package.
+* `vignette("tppcm-recipes", package = "tppcm")`: short recipes for every
+  function.
+
+Traditional Chinese versions, with the same code, are in the GitHub
+repository (not in the CRAN package):
+[`tppcm-tutorial-zh`](https://github.com/jiewenTsai/tppcm/blob/main/vignettes/articles/tppcm-tutorial-zh.Rmd)
+and
+[`tppcm-recipes-zh`](https://github.com/jiewenTsai/tppcm/blob/main/vignettes/articles/tppcm-recipes-zh.Rmd).
 
 Cite with `citation("tppcm")`.
 

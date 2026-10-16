@@ -57,3 +57,36 @@ jobs:
           args: 'c("--as-cran")'
           build_args: 'c("--compact-vignettes=gs+qpdf")'
 
+
+      - name: Profile tests and vignette chunks (temporary)
+        if: always() && runner.os == 'Windows'
+        shell: Rscript {0}
+        run: |
+          install.packages(".", repos = NULL, type = "source", quiet = TRUE)
+          library(tppcm)
+          cat("== test files (elapsed seconds)\n")
+          for (f in list.files("tests/testthat", "^test-.*\\.R$")) {
+            flt <- sub("^test-(.*)\\.R$", "\\1", f)
+            t <- system.time(testthat::test_dir("tests/testthat", filter = flt,
+              package = "tppcm", load_package = "installed",
+              reporter = "silent", stop_on_failure = FALSE))[["elapsed"]]
+            cat(sprintf("%-28s %6.1f\n", f, t))
+          }
+          cat("== vignette chunks over 2 s\n")
+          t0 <- NULL
+          knitr::knit_hooks$set(timeit = function(before, options) {
+            if (before) t0 <<- Sys.time() else {
+              dt <- as.numeric(difftime(Sys.time(), t0, units = "secs"))
+              if (dt > 2) cat(sprintf("  %-30s %6.1f\n", options$label, dt))
+            }
+            NULL
+          })
+          knitr::opts_chunk$set(timeit = TRUE)
+          for (f in list.files("vignettes", "\\.Rmd$", full.names = TRUE)) {
+            cat(f, "\n")
+            t <- system.time(rmarkdown::render(f, output_dir = tempdir(),
+              envir = new.env(), quiet = TRUE,
+              knit_root_dir = tempdir(),
+              params = NULL))[["elapsed"]]
+            cat(sprintf("  TOTAL %6.1f\n", t))
+          }

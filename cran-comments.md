@@ -1,10 +1,20 @@
 ## Resubmission
 
-This is a resubmission of tppcm 0.1.0, in response to the review by
-Konstanze Lauseker on 15 October 2026. The version number is unchanged
-because the package has never been on CRAN.
+This is a resubmission of tppcm 0.1.0. The submission of 16 October 2026
+answered the review by Konstanze Lauseker on 15 October 2026 but was
+rejected by the incoming pretest because the overall check time on Windows
+was 14 min (> 10 min). The version number is unchanged because the package
+has never been on CRAN.
 
-Changes:
+Changes since the submission of 16 October 2026 (check time):
+
+* The two Traditional Chinese vignettes, which repeated the code of the two
+  English vignettes, are no longer in the package; they stay in the GitHub
+  repository. This halves the time for re-building the vignettes.
+* CHECK_TIME_PLACEHOLDER
+
+Changes in response to the review of 15 October 2026 (unchanged since the
+submission of 16 October 2026):
 
 * DESCRIPTION no longer starts with "Tools for".
 * All acronyms in the Description are spelled out (generalized partial
@@ -57,8 +67,6 @@ sources with the development version number 0.1.0.9000): 0 errors |
 
 ## Notes for submission
 
-* Two vignettes in English and two in Traditional Chinese (UTF-8). The
-  Chinese ones duplicate the English ones with identical code.
 * Examples that fit models are wrapped in \donttest{} because they call TAM;
   with --run-donttest every example file runs in under 1 second.
 * Suggested packages (mirt, psychotools, psychotree, partykit, strucchange,

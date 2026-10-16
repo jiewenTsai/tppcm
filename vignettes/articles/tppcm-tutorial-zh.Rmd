@@ -25,7 +25,7 @@ old_options <- options(width = 90)
 7. `get_parts()`：取出數學組件；
 8. 建議流程與注意事項。
 
-所有範例都使用其他套件內附的資料：`CDM::data.Students` 的數學自我概念題、`TAM::data.timssAusTwn.scored` 的 TIMSS 2011 題目、`psychotools::VerbalAggression` 的語言攻擊資料，以及 `TAM::data.gpcm`。以問題為導向、涵蓋每一個函式的範例集在 `vignette("tppcm-recipes-zh")`。
+所有範例都使用其他套件內附的資料：`CDM::data.Students` 的數學自我概念題、`TAM::data.timssAusTwn.scored` 的 TIMSS 2011 題目、`psychotools::VerbalAggression` 的語言攻擊資料，以及 `TAM::data.gpcm`。以問題為導向、涵蓋每一個函式的範例集在 [中文範例集](https://github.com/jiewenTsai/tppcm/blob/main/vignettes/articles/tppcm-recipes-zh.Rmd)。
 
 # 1. 模式與套件定位
 

@@ -10,6 +10,8 @@ First release.
   the NRM fit; both tutorials (English and Chinese) have the section.
 * DESCRIPTION spells out all acronyms and links Yu (1991) and Glas (1998);
   the vignettes restore the `options()` they change (CRAN review).
+* The Traditional Chinese vignettes moved to `vignettes/articles/` in the
+  GitHub repository and are no longer part of the package (CRAN check time).
 
 ## Features
 

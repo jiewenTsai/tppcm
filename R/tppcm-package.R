@@ -92,8 +92,9 @@
 #' and how `p_adj` was adjusted.
 #'
 #' The vignettes `vignette("tppcm-tutorial")` and `vignette("tppcm-recipes")`
-#' (also in Traditional Chinese: `"tppcm-tutorial-zh"`, `"tppcm-recipes-zh"`)
 #' show every function on data sets from TAM, CDM, mirt and psychotools.
+#' Traditional Chinese versions are in the GitHub repository
+#' (`vignettes/articles/`).
 #'
 #' @references Preston, K., Reise, S., Cai, L., & Hays, R. D. (2011). Using
 #'   the nominal response model to evaluate response category discrimination
