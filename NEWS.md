@@ -12,6 +12,8 @@ First release.
   the vignettes restore the `options()` they change (CRAN review).
 * The Traditional Chinese vignettes moved to `vignettes/articles/` in the
   GitHub repository and are no longer part of the package (CRAN check time).
+* The slowest chunks of the vignettes show precomputed output (CRAN check
+  time).
 
 ## Features
 

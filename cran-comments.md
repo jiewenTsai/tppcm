@@ -11,6 +11,12 @@ Changes since the submission of 16 October 2026 (check time):
 * The two Traditional Chinese vignettes, which repeated the code of the two
   English vignettes, are no longer in the package; they stay in the GitHub
   repository. This halves the time for re-building the vignettes.
+* As asked by Uwe Ligges on 16 October 2026 ("re-building of vignette
+  outputs ... [10m]"), the seven slowest vignette chunks (the
+  likelihood-ratio DSF tests that refit multigroup models, the
+  configural/metric/scalar fits, the model-based trees, the xxirt fits with
+  the bound and the error examples) show precomputed output; their code is
+  no longer run when the vignettes are built.
 * The slowest tests (the multigroup refits in `test-dsf_design.R` and two
   blocks in `test-design.R` that fit many designs) are skipped on CRAN with
   `skip_on_cran()`; they run on GitHub Actions.
@@ -62,8 +68,8 @@ every platform. The one NOTE on the runners comes from the HTML manual
 check (HTML Tidy or V8 not available on the runner, so that validation was
 skipped). All 374 testthat expectations pass on every platform.
 
-Check time on the GitHub Windows runner: re-building the vignettes 187 s
-(373 s before the Chinese vignettes were removed); the test suite 21 s with
+Check time on the GitHub Windows runner: re-building the vignettes
+38 s (373 s at the first submission); the test suite 21 s with
 `NOT_CRAN=false` (99 s with all tests).
 
 win-builder (R-devel 2026-10-05 r90641 ucrt, 2026-10-06; run on the same
