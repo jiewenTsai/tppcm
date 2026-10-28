@@ -42,14 +42,15 @@ jobs:
 
       - uses: r-lib/actions/setup-tinytex@v2
 
-      # The TinyTeX mirror can stall without failing (once for 3 hours on
-      # Windows), so each attempt is capped and retried.
+      # The TinyTeX mirror can stall without failing (makeindex.windows hung
+      # for 3 hours), so each attempt is capped and retries use CTAN.
       - name: Install LaTeX packages for the PDF manual
         uses: nick-fields/retry@v3
         with:
           timeout_minutes: 5
           max_attempts: 3
           command: tlmgr update --self; tlmgr install inconsolata makeindex
+          new_command_on_retry: tlmgr option repository https://mirror.ctan.org/systems/texlive/tlnet; tlmgr update --self; tlmgr install inconsolata makeindex
 
       - uses: r-lib/actions/setup-r-dependencies@v2
         with:
