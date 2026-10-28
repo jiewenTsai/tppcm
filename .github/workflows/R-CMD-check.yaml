@@ -40,17 +40,20 @@ jobs:
           r-version: ${{ matrix.config.r }}
           http-user-agent: ${{ matrix.config.http-user-agent }}
 
+      # On Windows, installing makeindex into TinyTeX hangs (from the TinyTeX
+      # and the CTAN mirrors alike, October 2026), so Windows checks without
+      # the PDF manual; the other four jobs build and check it.
       - uses: r-lib/actions/setup-tinytex@v2
+        if: runner.os != 'Windows'
 
-      # The TinyTeX mirror can stall without failing (makeindex.windows hung
-      # for 3 hours), so each attempt is capped and retries use CTAN.
+      # A stalled download must not hold the job, so each attempt is capped.
       - name: Install LaTeX packages for the PDF manual
+        if: runner.os != 'Windows'
         uses: nick-fields/retry@v3
         with:
           timeout_minutes: 5
           max_attempts: 3
           command: tlmgr update --self; tlmgr install inconsolata makeindex
-          new_command_on_retry: tlmgr option repository https://mirror.ctan.org/systems/texlive/tlnet; tlmgr update --self; tlmgr install inconsolata makeindex
 
       - uses: r-lib/actions/setup-r-dependencies@v2
         with:
@@ -60,6 +63,6 @@ jobs:
       - uses: r-lib/actions/check-r-package@v2
         with:
           upload-snapshots: true
-          args: 'c("--as-cran")'
+          args: ${{ runner.os == 'Windows' && 'c("--as-cran", "--no-manual")' || 'c("--as-cran")' }}
           build_args: 'c("--compact-vignettes=gs+qpdf")'
 
