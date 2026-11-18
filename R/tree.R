@@ -16,9 +16,12 @@
   slope_names <- apply(A, 2, function(col) {
     rows <- which(col != 0)
     if (length(rows) == 1) return(paste0(pidx$item[ia][rows], "_", sl, pidx$step[ia][rows]))
-    it <- unique(pidx$item[ia][rows])
-    if (length(it) == 1) paste0(it, "_", sl) else sl                 # item-level / common
+    it <- unique(pidx$item[ia][rows]); st <- unique(pidx$step[ia][rows])
+    if (length(it) == 1) paste0(it, "_", sl)                          # item-level (~ item)
+    else if (length(st) == 1) paste0("step", st, "_", sl)              # step-level (~ step)
+    else sl                                                            # common or custom index
   })
+  slope_names <- make.unique(unname(slope_names), sep = "_")         # unit labels and parm = <name> need unique names
   if (param == "irt") {                               # d = a * diff
     S_slope <- (Sa + Sd * rep(d / a, each = N)) %*% A
     S_loc <- Sd * rep(a, each = N)

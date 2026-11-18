@@ -30,6 +30,17 @@ test_that("dif_test finds a single step DIF and not location DIF", {
   expect_gt(min(suppressMessages(dif_test(fit, g, parm = "diff", by = "item"))$p_adj), 0.05)
 })
 
+test_that("dif_test tests each step slope of a ~ step fit separately", {
+  skip_if_not_installed("strucchange")
+  dat <- make_data()
+  fit <- TAM::tam.mml.3pl(dat, E = tppcm(dat, design = ~ step), est.variance = FALSE, verbose = FALSE)
+  set.seed(3); z <- stats::rnorm(nrow(dat))
+  res <- dif_test(fit, z, parm = "disc")
+  expect_equal(res$unit, paste0("step", 1:3, "_disc"))
+  expect_equal(anyDuplicated(res$statistic), 0)
+  expect_equal(dif_test(fit, z, parm = "step2_disc")$statistic, res$statistic[2])
+})
+
 test_that(".resid_span equals the normal-equations projection at full rank", {
   set.seed(1)
   X <- matrix(rnorm(200 * 4), 200); Y <- matrix(rnorm(200 * 2), 200)
