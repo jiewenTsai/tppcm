@@ -113,6 +113,11 @@ version replaces it.
 
 ### Bug fixes
 
+* `dif_test(by = "param")` on a `~ step` fit tested the first step slope three
+  times: the shared slopes were all named `"disc"` and units are looked up by
+  name. Step-level slopes are now named `step1_disc`, `step2_disc`, ... (and
+  `step1_slope`, ... with `param = "si"`).
+
 * `dif_test()` and `tppcmtree(orthogonal = TRUE)` no longer fail with "system
   is computationally singular" when case-wise scores are (nearly) linearly
   dependent, e.g. when a step discrimination is estimated at 0. Null
